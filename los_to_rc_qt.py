@@ -432,7 +432,6 @@ class PlotWidget(QWidget):
         self.sys_vel = self.vel_input.value()
         self.calc_dist()
         self.dist = self.dist_input.value()
-        print('DISTANCE', self.dist)
         self.gal_frame = self.gal_center.skyoffset_frame(rotation=self.PA)
 
 
