@@ -39,7 +39,7 @@ from radecSpinBox import radecSpinBox
 matplotlib.use('QtAgg')
 
 
-def plot_slit_points(ax, rel_slit, masks=None, gal_frame=None, line=None):
+def plot_slit_points(ax, rel_slit, masks=None, gal_frame=None):
     if masks is None:
         masks = [np.ones(len(rel_slit)).astype(bool)]
     for mask in masks:
@@ -49,8 +49,8 @@ def plot_slit_points(ax, rel_slit, masks=None, gal_frame=None, line=None):
 
 
 def los_to_rc(data, slit, gal_frame, inclination, sys_vel, dist,
-              obj_name=None, verr_lim=200):
-    '''
+              verr_lim=200):
+    """
     data - pd.DataFrame
     slit - SkyCoord (inerable - SkyCoord of list)
     gal_frame - coordinates frame
@@ -58,7 +58,7 @@ def los_to_rc(data, slit, gal_frame, inclination, sys_vel, dist,
     sys_vel - float
     obj_name - str
     verr_lim - float
-    '''
+    """
     # H0 = 70 / (1e+6 * u.parsec)
     if 'position' in data:
         slit_pos = data['position']
@@ -75,13 +75,13 @@ def los_to_rc(data, slit, gal_frame, inclination, sys_vel, dist,
                              frame=gal_frame)
     # Угловое расстояние точек щели до центра галактики
     # (с поправкой на наклон галактики)
-    Separation = rel_slit_corr.separation(gal_center)
+    separation = rel_slit_corr.separation(gal_center)
     # Физическое расстояние
-    R_slit = dist * np.sin(Separation)
+    r_slit = dist * np.sin(separation)
 
     # Угол направления на центр галактики
     gal_frame_center = gal_center.transform_to(gal_frame)
-    slit_gal_PA = gal_frame_center.position_angle(rel_slit_corr)
+    slit_gal_pa = gal_frame_center.position_angle(rel_slit_corr)
 
     vel_lon = (data['velocity'].to_numpy() - sys_vel) / np.sin(inclination)
     if 'v_err' in data:
@@ -89,24 +89,24 @@ def los_to_rc(data, slit, gal_frame, inclination, sys_vel, dist,
     else:
         vel_lon_err = data['velocity'].to_numpy() * 0
 
-    vel_r = vel_lon / np.cos(slit_gal_PA)
-    vel_r_err = np.abs(vel_lon_err / np.cos(slit_gal_PA))
+    vel_r = vel_lon / np.cos(slit_gal_pa)
+    vel_r_err = np.abs(vel_lon_err / np.cos(slit_gal_pa))
 
     mask = (vel_r_err < verr_lim)
-    mask_center = (Separation.to(u.arcsec) > 5 * u.arcsec)
-    cone_angle = 20 * u.deg
-    mask_cone_1 = (slit_gal_PA > 90 * u.deg - cone_angle) & \
-                  (slit_gal_PA < 90 * u.deg + cone_angle)
-    mask_cone_2 = (slit_gal_PA > 270 * u.deg - cone_angle) & \
-                  (slit_gal_PA < 270 * u.deg + cone_angle)
-    mask_cone = ~(mask_cone_1 | mask_cone_2)
-    mask = mask & mask_center
-    mask = mask & mask_cone
+    # mask_center = (separation.to(u.arcsec) > 5 * u.arcsec)
+    # cone_angle = 20 * u.deg
+    # mask_cone_1 = (slit_gal_pa > 90 * u.deg - cone_angle) & \
+    #               (slit_gal_pa < 90 * u.deg + cone_angle)
+    # mask_cone_2 = (slit_gal_pa > 270 * u.deg - cone_angle) & \
+    #               (slit_gal_pa < 270 * u.deg + cone_angle)
+    # mask_cone = ~(mask_cone_1 | mask_cone_2)
+    # mask = mask & mask_center
+    # mask = mask & mask_cone
 
     # lat = np.array(rel_slit_corr.lat.to(u.arcsec)/u.arcsec)
     # minor_ax = np.argmin(np.abs(lat))
 
-    closest_point = np.argmin(np.abs(R_slit))
+    closest_point = np.argmin(np.abs(r_slit))
 
     first_side = (slit_pos >= slit_pos[closest_point])
     second_side = (slit_pos < slit_pos[closest_point])
@@ -115,15 +115,15 @@ def los_to_rc(data, slit, gal_frame, inclination, sys_vel, dist,
 
     data['Circular_v'] = -vel_r
     data['Circular_v_err'] = vel_r_err
-    data['R_pc'] = R_slit / u.parsec
-    data['R_arcsec'] = Separation.to(u.arcsec) / u.arcsec
+    data['R_pc'] = r_slit / u.parsec
+    data['R_arcsec'] = separation.to(u.arcsec) / u.arcsec
     data['mask1'] = np.array(first_side_mask, dtype=bool)
     data['mask2'] = np.array(second_side_mask, dtype=bool)
 
     return data
 
 
-class galaxyImage():
+class galaxyImage:
     def __init__(self, figure, image):
         self.colors = colormaps['tab20'](np.linspace(0, 1, 20))
         self.wcs = WCS(image.header)
@@ -171,7 +171,7 @@ class galaxyImage():
                              'icrs')
 
         for line in self.axes_gal.lines:
-            self.axes_gal.lines.remove(line)
+            list(self.axes_gal.lines).remove(line)
 
         for slit, mask, i in zip(slits, masks, range(0, 20, 2)):
             mask1, mask2 = mask
@@ -192,8 +192,14 @@ class galaxyImage():
                     transform=self.axes_gal.get_transform('icrs'),
                     color=self.colors[i + 1])
 
+    def get_center(self):
+        center = np.array(np.shape(self.image)) * 0.5
+        print(center)
+        cent_coord = self.wcs.pixel_to_world(*center)
+        return cent_coord
 
-class csvPlot():
+
+class csvPlot:
     def __init__(self, data, figure):
         self.colors = colormaps['tab20'](np.linspace(0, 1, 20))
         # data - list of pd.DataFrame
@@ -246,7 +252,7 @@ class csvPlot():
 
 
 class PlotWidget(QWidget):
-    def __init__(self, parent=None, csv=None, frame=None, refcenter=None, PA=0.,
+    def __init__(self, parent=None, csv=None, frame=None, refcenter=None, pa=0.,
                  inclination=0., velocity=0.):
         super().__init__(parent)
 
@@ -277,7 +283,7 @@ class PlotWidget(QWidget):
         self.PA_input = QDoubleSpinBox()
         self.PA_input.setKeyboardTracking(False)
         self.PA_input.setMaximum(360.0)
-        self.PA_input.setValue(PA)
+        self.PA_input.setValue(pa)
 
         self.ra_input = radecSpinBox(radec='ra')
         self.dec_input = radecSpinBox(radec='dec')
@@ -387,9 +393,14 @@ class PlotWidget(QWidget):
         self.updateValues()
 
         if self.gal_changed:
+            # TODO: Обновить координаты, если они дальше нескольких минут от центра изображения
             self.gal_fig.figure.clear()
             image = fits.open(self.image_field.files)[0]
             self.galIm = galaxyImage(self.gal_fig.figure, image)
+            im_center = self.galIm.get_center()
+            if im_center.separation(self.gal_center) > 1 * u.deg:
+                self.ra_input.setValue(im_center.ra)
+                self.dec_input.setValue(im_center.dec)
             self.galIm.plot_galaxy(self.gal_frame)
             self.gal_changed = False
 
