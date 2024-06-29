@@ -124,6 +124,25 @@ def los_to_rc(data, slit, gal_frame, inclination, sys_vel, dist,
     return data
 
 
+
+class galParams:
+    def __init__(self, i=0., pa=0., vel=0., dist=0., center=None):
+        self.i = i
+        self.pa = pa
+        self.vel = vel
+        self.dist = dist
+        if center is None:
+            self.center = SkyCoord(0, 0, unit=(u.hourangle, u.deg),
+                                   frame='icrs')
+        else:
+            self.center = center
+        self.frame = self.frame = self.center.skyoffset_frame(rotation=self.pa)
+
+    def update_frame(self):
+        self.frame = self.center.skyoffset_frame(rotation=self.pa)
+
+
+
 class galaxyImage:
     def __init__(self, figure, image):
         self.colors = colormaps['tab20'](np.linspace(0, 1, 20))
@@ -234,13 +253,14 @@ class csvPlot:
                                        unit=(u.hourangle, u.deg)))
         self.axes_plot = figure.subplots()
 
-    def calc_rc(self, gal_frame, inclination, sys_vel, dist=None):
-        if dist is None:
-            dist = sys_vel / 70.
+    # def calc_rc(self, gal_frame, inclination, sys_vel, dist=None):
+    def calc_rc(self, gal_p):
+        # if dist is None:
+        #     dist = sys_vel / 70.
         self.axes_plot.clear()
         self.masks = []
         for dat, slit in zip(self.data, self.slits):
-            dat = los_to_rc(dat, slit, gal_frame, inclination, sys_vel, dist)
+            dat = los_to_rc(dat, slit, gal_p.frame, gal_p.i, gal_p.vel, gal_p.dist)
             self.masks.append([dat['mask1'].to_numpy(),
                                dat['mask2'].to_numpy()])
         self.plot_rc()
@@ -312,6 +332,8 @@ class PlotWidget(QWidget):
         self.configureLayout()
 
         self.galIm = None
+        self.csvGraph = None
+        self.gal_p = galParams()
 
         self.redraw_button.clicked.connect(self.redraw)
         self.csv_field.changed_path.connect(self.csvChanged)
@@ -361,9 +383,6 @@ class PlotWidget(QWidget):
         self.dist_input.setDisabled(False)
 
         self.dist_checkbox.setToolTip('Assuming H0=70km/s/Mpc')
-
-
-
 
     def configureLayout(self):
         # Layout
@@ -415,8 +434,7 @@ class PlotWidget(QWidget):
     def galFrameChanged(self):
         self.updateValues()
         self.galIm.plot_galaxy(self.gal_frame)
-        slits, masks = self.csvGraph.calc_rc(self.gal_frame, self.inclination,
-                                             self.sys_vel)
+        slits, masks = self.csvGraph.calc_rc(self.gal_p)
         self.galIm.plot_slit(slits, masks)
         self.gal_fig.draw()
         self.plot_fig.draw()
@@ -424,8 +442,7 @@ class PlotWidget(QWidget):
     @Slot()
     def kinematicsChanged(self):
         self.updateValues()
-        self.csvGraph.calc_rc(self.gal_frame, self.inclination, self.sys_vel,
-                              self.dist)
+        self.csvGraph.calc_rc(self.gal_p)
         self.plot_fig.draw()
 
     @Slot()
@@ -449,9 +466,7 @@ class PlotWidget(QWidget):
             self.plot_fig.figure.clear()
             data = [pd.read_csv(x) for x in self.csv_field.files]
             self.csvGraph = csvPlot(data, self.plot_fig.figure)
-            slits, masks = self.csvGraph.calc_rc(self.gal_frame,
-                                                 self.inclination,
-                                                 self.sys_vel)
+            slits, masks = self.csvGraph.calc_rc(self.gal_p)
             if self.galIm is not None:
                 self.galIm.plot_galaxy(self.gal_frame)
                 self.galIm.plot_slit(slits, masks)
@@ -476,6 +491,15 @@ class PlotWidget(QWidget):
                  'R_pc', 'R_arcsec', 'mask1', 'mask2']].to_csv(file_path)
 
     def updateValues(self):
+        self.gal_p.i = self.i_input.value() * u.deg
+        self.gal_p.pa = self.PA_input.value() * u.deg
+        self.gal_p.center = SkyCoord(self.ra_input.getAngle(),
+                                     self.dec_input.getAngle(),
+                                     frame='icrs')
+        self.gal_p.vel = self.vel_input.value()
+        self.calc_dist()
+        self.gal_p.dist = self.dist_input.value()
+        self.gal_p.update_frame()
         self.inclination = self.i_input.value() * u.deg
         self.PA = self.PA_input.value() * u.deg
         self.gal_center = SkyCoord(self.ra_input.getAngle(),
