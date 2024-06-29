@@ -36,6 +36,7 @@ from PySide6.QtWidgets import (
 
 from OpenFile import OpenFile
 from radecSpinBox import radecSpinBox
+from astroPatches import rotatedEllipse
 matplotlib.use('QtAgg')
 
 
@@ -135,6 +136,11 @@ class galaxyImage:
         self.slits = None
         self.masks = None
         self.slit_draws = None
+        self.ellipses = []
+        # just default value, replaced with the real galaxy coordinate frame later
+        self.gal_frame = SkyCoord(0,0, unit=(u.deg, u.deg),
+                                  frame='icrs').skyoffset_frame()
+        self.overlay = self.axes_gal.get_coords_overlay(self.gal_frame)
         self.plot_galaxy()
 
     def plot_galaxy(self, gal_frame=None):
@@ -157,6 +163,7 @@ class galaxyImage:
             self.overlay.grid(color='white', linestyle='solid', alpha=0.5)
             self.axes_gal.plot(0, 0, 'ro',
                                transform=self.axes_gal.get_transform(gal_frame))
+            self.plot_ellipses(88.6, 71)
 
         if self.slits is not None:
             self.plot_slit(self.slits, self.masks)
@@ -197,6 +204,21 @@ class galaxyImage:
         print(center)
         cent_coord = self.wcs.pixel_to_world(*center)
         return cent_coord
+
+    def plot_ellipses(self, d, i):
+        r = np.array([5, 10, 15, 20]) * 1e-3
+        ang_r = u.radian * r / d
+        for a in ang_r:
+            self.plot_ellips(a, i)
+
+    def plot_ellips(self, r, i):
+        el = rotatedEllipse([0 * u.deg, 0 * u.deg],
+                            r, r*np.cos(np.radians(i)),
+                            theta=90 * u.deg,
+                            edgecolor='tab:olive', facecolor='none', lw=0.5,
+                            transform=self.axes_gal.get_transform(self.gal_frame))
+        self.axes_gal.add_patch(el)
+        pass
 
 
 class csvPlot:
