@@ -162,7 +162,7 @@ class galaxyImage:
         self.overlay = self.axes_gal.get_coords_overlay(self.gal_frame)
         self.plot_galaxy()
 
-    def plot_galaxy(self, gal_frame=None):
+    def plot_galaxy(self, gal_p=None):
         self.axes_gal.clear()
         self.axes_gal = self.figure.subplots(
             subplot_kw={'projection': self.wcs})
@@ -171,9 +171,9 @@ class galaxyImage:
         self.axes_gal.coords['ra'].set_ticks(color='white')
         self.axes_gal.coords['dec'].set_ticks(color='white')
 
-        if gal_frame is not None:
-            self.gal_frame = gal_frame
-            self.overlay = self.axes_gal.get_coords_overlay(gal_frame)
+        if gal_p is not None:
+            self.gal_frame = gal_p.frame
+            self.overlay = self.axes_gal.get_coords_overlay(self.gal_frame)
             # "Стираем" чёрточки по краям картинки
             self.overlay['lon'].set_ticks(color='white')
             self.overlay['lat'].set_ticks(color='white')
@@ -181,8 +181,8 @@ class galaxyImage:
             self.overlay['lat'].set_ticklabel(alpha=0)
             self.overlay.grid(color='white', linestyle='solid', alpha=0.5)
             self.axes_gal.plot(0, 0, 'ro',
-                               transform=self.axes_gal.get_transform(gal_frame))
-            self.plot_ellipses(88.6, 71)
+                               transform=self.axes_gal.get_transform(self.gal_frame))
+            self.plot_ellipses(gal_p.dist, gal_p.i)
 
         if self.slits is not None:
             self.plot_slit(self.slits, self.masks)
@@ -341,11 +341,11 @@ class PlotWidget(QWidget):
         self.PA_input.valueChanged.connect(self.galFrameChanged)
         self.ra_input.valueChanged.connect(self.galFrameChanged)
         self.dec_input.valueChanged.connect(self.galFrameChanged)
-        self.vel_input.valueChanged.connect(self.kinematicsChanged)
-        self.i_input.valueChanged.connect(self.kinematicsChanged)
-        self.dist_input.valueChanged.connect(self.kinematicsChanged)
+        self.vel_input.valueChanged.connect(self.galFrameChanged)
+        self.i_input.valueChanged.connect(self.galFrameChanged)
+        self.dist_input.valueChanged.connect(self.galFrameChanged)
         self.saveres_button.clicked.connect(self.save_rc)
-        self.dist_checkbox.stateChanged.connect(self.kinematicsChanged)
+        self.dist_checkbox.stateChanged.connect(self.galFrameChanged)
 
     def configureElements(self, frame, csv, inclination, pa, refcenter,
                           velocity):
@@ -433,7 +433,7 @@ class PlotWidget(QWidget):
     @Slot()
     def galFrameChanged(self):
         self.updateValues()
-        self.galIm.plot_galaxy(self.gal_frame)
+        self.galIm.plot_galaxy(self.gal_p)
         slits, masks = self.csvGraph.calc_rc(self.gal_p)
         self.galIm.plot_slit(slits, masks)
         self.gal_fig.draw()
@@ -456,10 +456,10 @@ class PlotWidget(QWidget):
             image = fits.open(self.image_field.files)[0]
             self.galIm = galaxyImage(self.gal_fig.figure, image)
             im_center = self.galIm.get_center()
-            if im_center.separation(self.gal_center) > 1 * u.deg:
+            if im_center.separation(self.gal_p.center) > 1 * u.deg:
                 self.ra_input.setValue(im_center.ra)
                 self.dec_input.setValue(im_center.dec)
-            self.galIm.plot_galaxy(self.gal_frame)
+            self.galIm.plot_galaxy(self.gal_p)
             self.gal_changed = False
 
         if self.csv_changed:
@@ -468,7 +468,7 @@ class PlotWidget(QWidget):
             self.csvGraph = csvPlot(data, self.plot_fig.figure)
             slits, masks = self.csvGraph.calc_rc(self.gal_p)
             if self.galIm is not None:
-                self.galIm.plot_galaxy(self.gal_frame)
+                self.galIm.plot_galaxy(self.gal_p)
                 self.galIm.plot_slit(slits, masks)
             self.csv_changed = False
 
@@ -500,15 +500,7 @@ class PlotWidget(QWidget):
         self.calc_dist()
         self.gal_p.dist = self.dist_input.value()
         self.gal_p.update_frame()
-        self.inclination = self.i_input.value() * u.deg
-        self.PA = self.PA_input.value() * u.deg
-        self.gal_center = SkyCoord(self.ra_input.getAngle(),
-                                   self.dec_input.getAngle(),
-                                   frame='icrs')
-        self.sys_vel = self.vel_input.value()
         self.calc_dist()
-        self.dist = self.dist_input.value()
-        self.gal_frame = self.gal_center.skyoffset_frame(rotation=self.PA)
 
 
 if __name__ == "__main__":
