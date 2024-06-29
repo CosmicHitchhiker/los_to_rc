@@ -12,7 +12,7 @@ from astropy.visualization import simple_norm
 from astropy.io import fits
 from astropy.wcs import WCS
 import astropy.units as u
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, ICRS
 import pandas as pd
 # from itertools import zip_longest, chain
 from matplotlib import colormaps
@@ -282,57 +282,90 @@ class PlotWidget(QWidget):
         self.csv_changed = False
 
         # create widgets
+        ################
+        # Plots (rotation cuves and galaxy image)
         self.plot_fig = FigureCanvas(Figure(figsize=(5, 3)))
         self.gal_fig = FigureCanvas(Figure(figsize=(5, 3)))
         self.toolbar_plot = NavigationToolbar2QT(self.plot_fig, self)
         self.toolbar_gal = NavigationToolbar2QT(self.gal_fig, self)
-
+        # String input for the path to the galaxy image field
         self.image_field = OpenFile(text='image', mode='o')
+        # String input for the pathes to the csvs with LOS velocities
+        self.csv_field = OpenFile(text='csv', mode='n')
+        # Inclination input
+        self.i_input = QDoubleSpinBox()
+        # PA input
+        self.PA_input = QDoubleSpinBox()
+        # Galaxy center coordinates input
+        self.ra_input = radecSpinBox(radec='ra')
+        self.dec_input = radecSpinBox(radec='dec')
+        # Galaxy center velocity input
+        self.vel_input = QDoubleSpinBox()
+        # Distance to the galaxy input
+        self.dist_input = QDoubleSpinBox()
+        self.dist_checkbox = QCheckBox('Calculate from velocity')
+        # Buttons
+        self.redraw_button = QPushButton(text='Redraw')
+        self.saveres_button = QPushButton(text='Save Results')
+        # Configure all widgets
+        self.configureElements(frame, csv, inclination, pa, refcenter, velocity)
+        self.configureLayout()
+
+        self.galIm = None
+
+        self.redraw_button.clicked.connect(self.redraw)
+        self.csv_field.changed_path.connect(self.csvChanged)
+        self.image_field.changed_path.connect(self.galChanged)
+        self.PA_input.valueChanged.connect(self.galFrameChanged)
+        self.ra_input.valueChanged.connect(self.galFrameChanged)
+        self.dec_input.valueChanged.connect(self.galFrameChanged)
+        self.vel_input.valueChanged.connect(self.kinematicsChanged)
+        self.i_input.valueChanged.connect(self.kinematicsChanged)
+        self.dist_input.valueChanged.connect(self.kinematicsChanged)
+        self.saveres_button.clicked.connect(self.save_rc)
+        self.dist_checkbox.stateChanged.connect(self.kinematicsChanged)
+
+    def configureElements(self, frame, csv, inclination, pa, refcenter,
+                          velocity):
         if frame is not None:
             self.image_field.fill_string(frame)
             self.gal_changed = True
 
-        self.csv_field = OpenFile(text='csv', mode='n')
         if csv is not None:
             csv = ', '.join(csv)
             self.csv_field.fill_string(csv)
             self.csv_changed = True
 
-        self.i_input = QDoubleSpinBox()
         self.i_input.setKeyboardTracking(False)
         self.i_input.setValue(inclination)
 
-        self.PA_input = QDoubleSpinBox()
         self.PA_input.setKeyboardTracking(False)
         self.PA_input.setMaximum(360.0)
         self.PA_input.setValue(pa)
 
-        self.ra_input = radecSpinBox(radec='ra')
-        self.dec_input = radecSpinBox(radec='dec')
         self.ra_input.setKeyboardTracking(False)
         self.dec_input.setKeyboardTracking(False)
         if refcenter is not None:
             self.ra_input.setValue(refcenter[0])
             self.dec_input.setValue(refcenter[1])
 
-        self.vel_input = QDoubleSpinBox()
         self.vel_input.setKeyboardTracking(False)
         self.vel_input.setSuffix('km/s')
         self.vel_input.setMaximum(500000)
         self.vel_input.setValue(velocity)
 
-        self.dist_input = QDoubleSpinBox()
         self.dist_input.setKeyboardTracking(False)
         self.dist_input.setSuffix('Mpc')
         self.dist_input.setValue(velocity / 70)
         self.dist_input.setSingleStep(0.1)
         self.dist_input.setDisabled(False)
-        self.dist_checkbox = QCheckBox('Calculate from velocity')
+
         self.dist_checkbox.setToolTip('Assuming H0=70km/s/Mpc')
 
-        self.redraw_button = QPushButton(text='Redraw')
-        self.saveres_button = QPushButton(text='Save Results')
 
+
+
+    def configureLayout(self):
         # Layout
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.redraw_button)
@@ -361,20 +394,6 @@ class PlotWidget(QWidget):
         glayout.setRowStretch(1, 1)
         glayout.setRowStretch(2, 0)
         self.setLayout(glayout)
-
-        self.galIm = None
-
-        self.redraw_button.clicked.connect(self.redraw)
-        self.csv_field.changed_path.connect(self.csvChanged)
-        self.image_field.changed_path.connect(self.galChanged)
-        self.PA_input.valueChanged.connect(self.galFrameChanged)
-        self.ra_input.valueChanged.connect(self.galFrameChanged)
-        self.dec_input.valueChanged.connect(self.galFrameChanged)
-        self.vel_input.valueChanged.connect(self.kinematicsChanged)
-        self.i_input.valueChanged.connect(self.kinematicsChanged)
-        self.dist_input.valueChanged.connect(self.kinematicsChanged)
-        self.saveres_button.clicked.connect(self.save_rc)
-        self.dist_checkbox.stateChanged.connect(self.kinematicsChanged)
 
     @Slot()
     def galChanged(self):
