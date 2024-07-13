@@ -38,6 +38,7 @@ from PySide6.QtWidgets import (
 from OpenFile import OpenFile
 from radecSpinBox import radecSpinBox
 from astroPatches import rotatedEllipse
+from InputFiles import InputDialog
 matplotlib.use('QtAgg')
 
 
@@ -123,13 +124,6 @@ def los_to_rc(data, slit, gal_frame, inclination, sys_vel, dist,
     data['mask2'] = np.array(second_side_mask, dtype=bool)
 
     return data
-
-
-class slitParams:
-    def __init__(self, n=0):
-        colors = colormaps['tab20'](np.linspace(0, 1, 20))
-        self.colors = colors([2 * n, 2 * n + 1])
-        self.csv_path = None
 
 
 class galParams:
@@ -336,6 +330,7 @@ class PlotWidget(QWidget):
         self.redraw_button = QPushButton(text='Redraw')
         self.saveres_button = QPushButton(text='Save Results')
         self.fine_button = QPushButton(text='Fine movements')
+        self.manage_csv_button = QPushButton(text='Manage CSV files')
         # Keyboard Shortcuts (for fine movements)
         self.left_shortcut = QShortcut(QKeySequence('Left'), self)
         self.right_shortcut = QShortcut(QKeySequence('Right'), self)
@@ -345,6 +340,8 @@ class PlotWidget(QWidget):
                                self.right_shortcut,
                                self.up_shortcut,
                                self.down_shortcut]
+        # Dialogs
+        self.manage_csv = InputDialog(self)
 
         # Configure all widgets
         self.configureElements(frame, csv, inclination, pa, refcenter, velocity)
@@ -370,6 +367,7 @@ class PlotWidget(QWidget):
         self.right_shortcut.activated.connect(lambda: self.ra_input.stepBy(-0.1))
         self.up_shortcut.activated.connect(lambda: self.dec_input.stepBy(0.1))
         self.down_shortcut.activated.connect(lambda: self.dec_input.stepBy(-0.1))
+        self.manage_csv_button.clicked.connect(lambda: self.manage_csv.show())
 
     def configureElements(self, frame, csv, inclination, pa, refcenter,
                           velocity):
@@ -413,22 +411,26 @@ class PlotWidget(QWidget):
 
     def configureLayout(self):
         # Layout
-        button_layout = QHBoxLayout()
-        button_layout.addWidget(self.redraw_button)
-        button_layout.addWidget(self.saveres_button)
+        r_button_layout = QHBoxLayout()
+        r_button_layout.addWidget(self.redraw_button)
+        r_button_layout.addWidget(self.saveres_button)
+
+        l_button_layout = QHBoxLayout()
+        l_button_layout.addWidget(self.manage_csv_button)
+        l_button_layout.addWidget(self.fine_button)
 
         left_layout = QFormLayout()
         left_layout.addRow(self.csv_field)
         left_layout.addRow('i', self.i_input)
         left_layout.addRow('RA', self.ra_input)
         left_layout.addRow('system velocity', self.vel_input)
-        left_layout.addRow(self.fine_button)
+        left_layout.addRow(l_button_layout)
         right_layout = QFormLayout()
         right_layout.addRow(self.image_field)
         right_layout.addRow('PA', self.PA_input)
         right_layout.addRow('DEC', self.dec_input)
         right_layout.addRow(self.dist_checkbox, self.dist_input)
-        right_layout.addRow(button_layout)
+        right_layout.addRow(r_button_layout)
 
         glayout = QGridLayout()
         glayout.addWidget(self.toolbar_plot, 0, 0)
