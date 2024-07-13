@@ -21,7 +21,8 @@ from matplotlib import colormaps
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Slot, Qt
+from PySide6.QtGui import QShortcut, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
     QWidget,
@@ -306,6 +307,7 @@ class PlotWidget(QWidget):
 
         self.gal_changed = False
         self.csv_changed = False
+        self.fine_active = False
 
         # create widgets
         ################
@@ -333,6 +335,16 @@ class PlotWidget(QWidget):
         # Buttons
         self.redraw_button = QPushButton(text='Redraw')
         self.saveres_button = QPushButton(text='Save Results')
+        self.fine_button = QPushButton(text='Fine movements')
+        # Keyboard Shortcuts (for fine movements)
+        self.left_shortcut = QShortcut(QKeySequence('Left'), self)
+        self.right_shortcut = QShortcut(QKeySequence('Right'), self)
+        self.up_shortcut = QShortcut(QKeySequence('Up'), self)
+        self.down_shortcut = QShortcut(QKeySequence('Down'), self)
+        self.fine_shortcuts = [self.left_shortcut,
+                               self.right_shortcut,
+                               self.up_shortcut,
+                               self.down_shortcut]
 
         # Configure all widgets
         self.configureElements(frame, csv, inclination, pa, refcenter, velocity)
@@ -353,6 +365,11 @@ class PlotWidget(QWidget):
         self.dist_input.valueChanged.connect(self.galFrameChanged)
         self.saveres_button.clicked.connect(self.save_rc)
         self.dist_checkbox.stateChanged.connect(self.galFrameChanged)
+        self.fine_button.clicked.connect(self.fineMovements)
+        self.left_shortcut.activated.connect(lambda: self.ra_input.stepBy(0.1))
+        self.right_shortcut.activated.connect(lambda: self.ra_input.stepBy(-0.1))
+        self.up_shortcut.activated.connect(lambda: self.dec_input.stepBy(0.1))
+        self.down_shortcut.activated.connect(lambda: self.dec_input.stepBy(-0.1))
 
     def configureElements(self, frame, csv, inclination, pa, refcenter,
                           velocity):
@@ -391,6 +408,9 @@ class PlotWidget(QWidget):
 
         self.dist_checkbox.setToolTip('Assuming H0=70km/s/Mpc')
 
+        self.fine_button.setCheckable(True)
+        self.fineMovements()
+
     def configureLayout(self):
         # Layout
         button_layout = QHBoxLayout()
@@ -402,6 +422,7 @@ class PlotWidget(QWidget):
         left_layout.addRow('i', self.i_input)
         left_layout.addRow('RA', self.ra_input)
         left_layout.addRow('system velocity', self.vel_input)
+        left_layout.addRow(self.fine_button)
         right_layout = QFormLayout()
         right_layout.addRow(self.image_field)
         right_layout.addRow('PA', self.PA_input)
@@ -498,6 +519,7 @@ class PlotWidget(QWidget):
                  'R_pc', 'R_arcsec', 'mask1', 'mask2']].to_csv(file_path)
 
     def updateValues(self):
+        print('Fine button is pressed: ', self.fine_button.isChecked())
         self.gal_p.i = self.i_input.value() * u.deg
         self.gal_p.pa = self.PA_input.value() * u.deg
         self.gal_p.center = SkyCoord(self.ra_input.getAngle(),
@@ -508,6 +530,17 @@ class PlotWidget(QWidget):
         self.gal_p.dist = self.dist_input.value()
         self.gal_p.update_frame()
         self.calc_dist()
+
+    def fineMovements(self):
+        # QApplication.setOverrideCursor(Qt.CrossCursor)
+        self.fine_active = self.fine_button.isChecked()
+        print(self.fine_active)
+        if self.fine_active:
+            for s in self.fine_shortcuts:
+                s.blockSignals(False)
+        else:
+            for s in self.fine_shortcuts:
+                s.blockSignals(True)
 
 
 if __name__ == "__main__":

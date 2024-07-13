@@ -73,6 +73,9 @@ Now you should fill in all of the fields at the bottom of the window.
  and _mask2_ is True if it is on the other side. There may be some points that have both _mask1_ and _mask2_ values False.
  That means that either circular_v_err is too big (>200km/s) or the point is too close to the minor axis.
 
+If the *Fine Movements* button is pressed, you can use keyboard arrow buttons to change RA and DEC.
+Left and Right buttons will increase and decrease RA (step is 0.01 hourangle sec),
+Up and Down button will increase and decrease DEC (step is 0.1 arcsec).
  ## Algorithm of the calculations
 
  ### Coordinates definition

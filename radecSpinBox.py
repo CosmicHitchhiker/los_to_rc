@@ -47,7 +47,8 @@ class radecSpinBox(QAbstractSpinBox):
         ret |= QAbstractSpinBox.StepDownEnabled
         return ret
 
-    def stepBy(self, steps):
+    @Slot()
+    def stepBy(self, steps: float):
         self.angle += steps * self.step
         self.line.setText(self.textFromValue(self.angle.value))
         self.valueChanged.emit(self.angle)
