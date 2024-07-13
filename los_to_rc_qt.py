@@ -85,8 +85,8 @@ def los_to_rc(data, slit, gal_frame, inclination, sys_vel, dist,
     slit_gal_pa = gal_frame_center.position_angle(rel_slit_corr)
 
     vel_lon = (data['velocity'].to_numpy() - sys_vel) / np.sin(inclination)
-    if 'v_err' in data:
-        vel_lon_err = np.abs(data['v_err'].to_numpy() / np.sin(inclination))
+    if 'velocity_err' in data:
+        vel_lon_err = np.abs(data['velocity_err'].to_numpy() / np.sin(inclination))
     else:
         vel_lon_err = data['velocity'].to_numpy() * 0
 
