@@ -124,6 +124,12 @@ def los_to_rc(data, slit, gal_frame, inclination, sys_vel, dist,
     return data
 
 
+class slitParams:
+    def __init__(self, n=0):
+        colors = colormaps['tab20'](np.linspace(0, 1, 20))
+        self.colors = colors([2 * n, 2 * n + 1])
+        self.csv_path = None
+
 
 class galParams:
     def __init__(self, i=0., pa=0., vel=0., dist=0., center=None):
@@ -136,11 +142,10 @@ class galParams:
                                    frame='icrs')
         else:
             self.center = center
-        self.frame = self.frame = self.center.skyoffset_frame(rotation=self.pa)
+        self.frame = self.center.skyoffset_frame(rotation=self.pa)
 
     def update_frame(self):
         self.frame = self.center.skyoffset_frame(rotation=self.pa)
-
 
 
 class galaxyImage:
@@ -246,6 +251,7 @@ class csvPlot:
         # data - list of pd.DataFrame
         self.data = data
         self.slits = []
+        self.masks = []
         for dat in self.data:
             slit_ra = dat['RA']
             slit_dec = dat['DEC']
@@ -327,6 +333,7 @@ class PlotWidget(QWidget):
         # Buttons
         self.redraw_button = QPushButton(text='Redraw')
         self.saveres_button = QPushButton(text='Save Results')
+
         # Configure all widgets
         self.configureElements(frame, csv, inclination, pa, refcenter, velocity)
         self.configureLayout()
