@@ -38,7 +38,7 @@ from PySide6.QtWidgets import (
 from OpenFile import OpenFile
 from radecSpinBox import radecSpinBox
 from astroPatches import rotatedEllipse
-from InputFiles import InputDialog
+from InputFiles import InputDialog, slitParams
 matplotlib.use('QtAgg')
 
 
@@ -157,7 +157,7 @@ class galaxyImage:
         self.slit_draws = None
         self.ellipses = []
         # just default value, replaced with the real galaxy coordinate frame later
-        self.gal_frame = SkyCoord(0,0, unit=(u.deg, u.deg),
+        self.gal_frame = SkyCoord(0, 0, unit=(u.deg, u.deg),
                                   frame='icrs').skyoffset_frame()
         self.overlay = self.axes_gal.get_coords_overlay(self.gal_frame)
         self.plot_galaxy()
@@ -180,7 +180,8 @@ class galaxyImage:
             self.overlay['lon'].set_ticklabel(alpha=0)
             self.overlay['lat'].set_ticklabel(alpha=0)
             self.overlay.grid(color='white', linestyle='solid', alpha=0.5)
-            self.axes_gal.plot(0, 0, 'ro',
+            # print set center of the galaxy
+            self.axes_gal.plot(0, 0, 'r+', ms=10,
                                transform=self.axes_gal.get_transform(self.gal_frame))
             self.plot_ellipses(gal_p.dist, gal_p.i)
 
@@ -313,7 +314,7 @@ class PlotWidget(QWidget):
         # String input for the path to the galaxy image field
         self.image_field = OpenFile(text='image', mode='o')
         # String input for the pathes to the csvs with LOS velocities
-        self.csv_field = OpenFile(text='csv', mode='n')
+        # self.csv_field = OpenFile(text='csv', mode='n')
         # Inclination input
         self.i_input = QDoubleSpinBox()
         # PA input
@@ -352,7 +353,7 @@ class PlotWidget(QWidget):
         self.gal_p = galParams()
 
         self.redraw_button.clicked.connect(self.redraw)
-        self.csv_field.changed_path.connect(self.csvChanged)
+        # self.csv_field.changed_path.connect(self.csvChanged)
         self.image_field.changed_path.connect(self.galChanged)
         self.PA_input.valueChanged.connect(self.galFrameChanged)
         self.ra_input.valueChanged.connect(self.galFrameChanged)
@@ -368,6 +369,7 @@ class PlotWidget(QWidget):
         self.up_shortcut.activated.connect(lambda: self.dec_input.stepBy(0.1))
         self.down_shortcut.activated.connect(lambda: self.dec_input.stepBy(-0.1))
         self.manage_csv_button.clicked.connect(lambda: self.manage_csv.show())
+        self.manage_csv.accepted.connect(self.csvChanged)
 
     def configureElements(self, frame, csv, inclination, pa, refcenter,
                           velocity):
@@ -376,8 +378,10 @@ class PlotWidget(QWidget):
             self.gal_changed = True
 
         if csv is not None:
-            csv = ', '.join(csv)
-            self.csv_field.fill_string(csv)
+            for csv_path in csv:
+                self.manage_csv.add_file(csv_path)
+            # csv = ', '.join(csv)
+            # self.csv_field.fill_string(csv)
             self.csv_changed = True
 
         self.i_input.setKeyboardTracking(False)
@@ -416,11 +420,12 @@ class PlotWidget(QWidget):
         r_button_layout.addWidget(self.saveres_button)
 
         l_button_layout = QHBoxLayout()
-        l_button_layout.addWidget(self.manage_csv_button)
+        # l_button_layout.addWidget(self.manage_csv_button)
         l_button_layout.addWidget(self.fine_button)
 
         left_layout = QFormLayout()
-        left_layout.addRow(self.csv_field)
+        # left_layout.addRow(self.csv_field)
+        left_layout.addRow(self.manage_csv_button)
         left_layout.addRow('i', self.i_input)
         left_layout.addRow('RA', self.ra_input)
         left_layout.addRow('system velocity', self.vel_input)
@@ -481,7 +486,6 @@ class PlotWidget(QWidget):
         self.updateValues()
 
         if self.gal_changed:
-            # TODO: Обновить координаты, если они дальше нескольких минут от центра изображения
             self.gal_fig.figure.clear()
             image = fits.open(self.image_field.files)[0]
             self.galIm = galaxyImage(self.gal_fig.figure, image)
@@ -494,7 +498,7 @@ class PlotWidget(QWidget):
 
         if self.csv_changed:
             self.plot_fig.figure.clear()
-            data = [pd.read_csv(x) for x in self.csv_field.files]
+            data = [x.dataFrame for x in self.manage_csv.data]
             self.csvGraph = csvPlot(data, self.plot_fig.figure)
             slits, masks = self.csvGraph.calc_rc(self.gal_p)
             if self.galIm is not None:
@@ -507,7 +511,8 @@ class PlotWidget(QWidget):
 
     @Slot()
     def save_rc(self):
-        filenames = self.csv_field.return_filenames()
+        # filenames = self.csv_field.return_filenames()
+        filenames = [x.csv_path for x in self.manage_csv.data]
         dataframes = self.csvGraph.return_rc()
         regexps = "CSV (*.csv)"
         for fname, dat in zip(filenames, dataframes):
