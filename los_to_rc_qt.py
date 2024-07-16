@@ -168,18 +168,18 @@ class galaxyImage:
             subplot_kw={'projection': self.wcs})
         self.axes_gal.imshow(self.image.data, cmap='bone', norm=self.norm_im)
         # "Стираем" чёрточки по краям картинки
-        self.axes_gal.coords['ra'].set_ticks(color='white')
-        self.axes_gal.coords['dec'].set_ticks(color='white')
+        # self.axes_gal.coords['ra'].set_ticks(color='white')
+        # self.axes_gal.coords['dec'].set_ticks(color='white')
 
         if gal_p is not None:
             self.gal_frame = gal_p.frame
-            self.overlay = self.axes_gal.get_coords_overlay(self.gal_frame)
-            # "Стираем" чёрточки по краям картинки
-            self.overlay['lon'].set_ticks(color='white')
-            self.overlay['lat'].set_ticks(color='white')
-            self.overlay['lon'].set_ticklabel(alpha=0)
-            self.overlay['lat'].set_ticklabel(alpha=0)
-            self.overlay.grid(color='white', linestyle='solid', alpha=0.5)
+            # self.overlay = self.axes_gal.get_coords_overlay(self.gal_frame)
+            # # "Стираем" чёрточки по краям картинки
+            # self.overlay['lon'].set_ticks(color='white')
+            # self.overlay['lat'].set_ticks(color='white')
+            # self.overlay['lon'].set_ticklabel(alpha=0)
+            # self.overlay['lat'].set_ticklabel(alpha=0)
+            # self.overlay.grid(color='white', linestyle='solid', alpha=0.5)
             # plot center of the galaxy
             self.axes_gal.plot(0, 0, 'r+', ms=10,
                                transform=self.axes_gal.get_transform(self.gal_frame))
@@ -190,6 +190,7 @@ class galaxyImage:
 
         # plot_galaxy(self.axes_gal, self.image, self.gal_frame)
 
+    # TODO: slitParams
     def plot_slit(self, slits, masks):
         self.slits = slits
         self.masks = masks
@@ -281,7 +282,7 @@ class csvPlot:
                     yerr=verr[mask1],
                     linestyle='',
                     marker='.',
-                    color=self.colors[i])
+                    color=dat_sp.colors[0])
             if len(mask2[mask2]) > 0:
                 self.axes_plot.errorbar(
                     dat['R_pc'][mask2],
@@ -289,7 +290,7 @@ class csvPlot:
                     yerr=verr[mask2],
                     linestyle='',
                     marker='.',
-                    color=self.colors[i + 1])
+                    color=dat_sp.colors[1])
 
     def return_rc(self):
         return self.data
