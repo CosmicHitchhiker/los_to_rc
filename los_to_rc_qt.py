@@ -180,7 +180,7 @@ class galaxyImage:
             self.overlay['lon'].set_ticklabel(alpha=0)
             self.overlay['lat'].set_ticklabel(alpha=0)
             self.overlay.grid(color='white', linestyle='solid', alpha=0.5)
-            # print set center of the galaxy
+            # plot center of the galaxy
             self.axes_gal.plot(0, 0, 'r+', ms=10,
                                transform=self.axes_gal.get_transform(self.gal_frame))
             self.plot_ellipses(gal_p.dist, gal_p.i)
@@ -221,7 +221,6 @@ class galaxyImage:
 
     def get_center(self):
         center = np.array(np.shape(self.image)) * 0.5
-        print(center)
         cent_coord = self.wcs.pixel_to_world(*center)
         return cent_coord
 
@@ -244,15 +243,15 @@ class galaxyImage:
 class csvPlot:
     def __init__(self, data, figure):
         self.colors = colormaps['tab20'](np.linspace(0, 1, 20))
-        # data - list of pd.DataFrame
+        # data - list of slitParams
         self.data = data
-        self.slits = []
+        self.slits = [x.slitpos for x in self.data]
         self.masks = []
-        for dat in self.data:
-            slit_ra = dat['RA']
-            slit_dec = dat['DEC']
-            self.slits.append(SkyCoord(slit_ra, slit_dec, frame='icrs',
-                                       unit=(u.hourangle, u.deg)))
+        # for dat in self.data:
+        #     slit_ra = dat['RA']
+        #     slit_dec = dat['DEC']
+        #     self.slits.append(SkyCoord(slit_ra, slit_dec, frame='icrs',
+        #                                unit=(u.hourangle, u.deg)))
         self.axes_plot = figure.subplots()
 
     # def calc_rc(self, gal_frame, inclination, sys_vel, dist=None):
@@ -262,7 +261,7 @@ class csvPlot:
         self.axes_plot.clear()
         self.masks = []
         for dat, slit in zip(self.data, self.slits):
-            dat = los_to_rc(dat, slit, gal_p.frame, gal_p.i, gal_p.vel, gal_p.dist)
+            dat = los_to_rc(dat.dataFrame, dat.slitpos, gal_p.frame, gal_p.i, gal_p.vel, gal_p.dist)
             self.masks.append([dat['mask1'].to_numpy(),
                                dat['mask2'].to_numpy()])
         self.plot_rc()
@@ -271,7 +270,8 @@ class csvPlot:
     def plot_rc(self):
         self.axes_plot.set_ylabel('Circular Velocity, km/s')
         self.axes_plot.set_xlabel('R, parsec')
-        for dat, mask, i in zip(self.data, self.masks, range(0, 20, 2)):
+        for dat_sp, mask, i in zip(self.data, self.masks, range(0, 20, 2)):
+            dat = dat_sp.dataFrame
             verr = dat['Circular_v_err'].to_numpy()
             mask1, mask2 = mask
             if len(mask1[mask1]) > 0:
@@ -499,7 +499,7 @@ class PlotWidget(QWidget):
         if self.csv_changed:
             self.plot_fig.figure.clear()
             data = [x.dataFrame for x in self.manage_csv.data]
-            self.csvGraph = csvPlot(data, self.plot_fig.figure)
+            self.csvGraph = csvPlot(self.manage_csv.data, self.plot_fig.figure)
             slits, masks = self.csvGraph.calc_rc(self.gal_p)
             if self.galIm is not None:
                 self.galIm.plot_galaxy(self.gal_p)
@@ -526,7 +526,6 @@ class PlotWidget(QWidget):
                  'R_pc', 'R_arcsec', 'mask1', 'mask2']].to_csv(file_path)
 
     def updateValues(self):
-        print('Fine button is pressed: ', self.fine_button.isChecked())
         self.gal_p.i = self.i_input.value() * u.deg
         self.gal_p.pa = self.PA_input.value() * u.deg
         self.gal_p.center = SkyCoord(self.ra_input.getAngle(),
@@ -541,7 +540,7 @@ class PlotWidget(QWidget):
     def fineMovements(self):
         # QApplication.setOverrideCursor(Qt.CrossCursor)
         self.fine_active = self.fine_button.isChecked()
-        print(self.fine_active)
+        print('Fine movements are active: ', self.fine_active)
         if self.fine_active:
             for s in self.fine_shortcuts:
                 s.blockSignals(False)

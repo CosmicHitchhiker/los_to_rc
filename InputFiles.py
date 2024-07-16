@@ -41,7 +41,7 @@ class slitParams:
         self.is_used = is_used
         try:
             self.dataFrame = pd.read_csv(self.csv_path)
-            self.slitpos = SkyCoord(self.dataFrame['RAR'],
+            self.slitpos = SkyCoord(self.dataFrame['RA'],
                                     self.dataFrame['DEC'],
                                     frame='icrs',
                                     unit=(u.hourangle, u.deg))
