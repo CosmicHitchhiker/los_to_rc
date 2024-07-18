@@ -6,7 +6,7 @@
 import sys
 
 import numpy as np
-# from scipy.stats import norm
+import scipy.spatial
 import matplotlib
 from astropy.visualization import simple_norm
 from astropy.io import fits
@@ -39,81 +39,6 @@ from astroPatches import rotatedEllipse
 from InputFiles import InputDialog
 from FineMovements import FineMovementsDialog
 matplotlib.use('QtAgg')
-
-
-def los_to_rc(data, slit, gal_frame, inclination, sys_vel, dist,
-              verr_lim=200):
-    """
-    data - pd.DataFrame
-    slit - SkyCoord (inerable - SkyCoord of list)
-    gal_frame - coordinates frame
-    inclination - float * u.deg
-    sys_vel - float
-    obj_name - str
-    verr_lim - float
-    """
-    # H0 = 70 / (1e+6 * u.parsec)
-    if 'position' in data:
-        slit_pos = data['position']
-    else:
-        slit_pos = slit.separation(slit[0]).to(u.arcsec)
-
-    gal_center = SkyCoord(0 * u.deg, 0 * u.deg, frame=gal_frame)
-    rel_slit = slit.transform_to(gal_frame)
-
-    dist = dist * 1e+6 * u.parsec
-    # dist = sys_vel / H0
-    # Исправляем за наклон галактики
-    rel_slit_corr = SkyCoord(rel_slit.lon / np.cos(inclination), rel_slit.lat,
-                             frame=gal_frame)
-    # Угловое расстояние точек щели до центра галактики
-    # (с поправкой на наклон галактики)
-    separation = rel_slit_corr.separation(gal_center)
-    # Физическое расстояние
-    r_slit = dist * np.sin(separation)
-
-    # Угол направления на центр галактики
-    gal_frame_center = gal_center.transform_to(gal_frame)
-    slit_gal_pa = gal_frame_center.position_angle(rel_slit_corr)
-
-    vel_lon = (data['velocity'].to_numpy() - sys_vel) / np.sin(inclination)
-    if 'velocity_err' in data:
-        vel_lon_err = np.abs(data['velocity_err'].to_numpy() / np.sin(inclination))
-    else:
-        vel_lon_err = data['velocity'].to_numpy() * 0
-
-    vel_r = vel_lon / np.cos(slit_gal_pa)
-    vel_r_err = np.abs(vel_lon_err / np.cos(slit_gal_pa))
-
-    mask = (vel_r_err < verr_lim)
-    # mask_center = (separation.to(u.arcsec) > 5 * u.arcsec)
-    # cone_angle = 20 * u.deg
-    # mask_cone_1 = (slit_gal_pa > 90 * u.deg - cone_angle) & \
-    #               (slit_gal_pa < 90 * u.deg + cone_angle)
-    # mask_cone_2 = (slit_gal_pa > 270 * u.deg - cone_angle) & \
-    #               (slit_gal_pa < 270 * u.deg + cone_angle)
-    # mask_cone = ~(mask_cone_1 | mask_cone_2)
-    # mask = mask & mask_center
-    # mask = mask & mask_cone
-
-    # lat = np.array(rel_slit_corr.lat.to(u.arcsec)/u.arcsec)
-    # minor_ax = np.argmin(np.abs(lat))
-
-    closest_point = np.argmin(np.abs(r_slit))
-
-    first_side = (slit_pos >= slit_pos[closest_point])
-    second_side = (slit_pos < slit_pos[closest_point])
-    first_side_mask = (first_side & mask)
-    second_side_mask = (second_side & mask)
-
-    data['Circular_v'] = -vel_r
-    data['Circular_v_err'] = vel_r_err
-    data['R_pc'] = r_slit / u.parsec
-    data['R_arcsec'] = separation.to(u.arcsec) / u.arcsec
-    data['mask1'] = np.array(first_side_mask, dtype=bool)
-    data['mask2'] = np.array(second_side_mask, dtype=bool)
-
-    return data
 
 
 class galParams:
@@ -220,33 +145,61 @@ class csvPlot:
         self.data = data
         self.slits = [x.slitpos for x in self.data]
         self.masks = []
-        # for dat in self.data:
-        #     slit_ra = dat['RA']
-        #     slit_dec = dat['DEC']
-        #     self.slits.append(SkyCoord(slit_ra, slit_dec, frame='icrs',
-        #                                unit=(u.hourangle, u.deg)))
         self.axes_plot = figure.subplots()
+        self.axes_plot.figure.canvas.mpl_connect('button_press_event', self.on_click)
+        # object to find the closest point in a set
+        self.ckdtree = None
+        self.all_points = None
+        self.all_points_n_line = None
 
-    # def calc_rc(self, gal_frame, inclination, sys_vel, dist=None):
+    def on_click(self, event):
+        if event.inaxes != self.axes_plot: return
+
+        print('Click!')
+        self.axes_plot.plot(1000, 1000, 'ro')
+        self.axes_plot.figure.canvas.draw()
+
     def calc_rc(self, gal_p):
         # if dist is None:
         #     dist = sys_vel / 70.
         self.axes_plot.clear()
         self.masks = []
-        for dat, slit in zip(self.data, self.slits):
-            dat = los_to_rc(dat.dataFrame, dat.slitpos, gal_p.frame, gal_p.i, gal_p.vel, gal_p.dist)
-            self.masks.append([dat['mask1'].to_numpy(),
-                               dat['mask2'].to_numpy()])
+        self.all_points = None
+        self.all_points_n_line = None
+        i = 0
+        for dat in self.data:
+            dat.los_to_rc(gal_p)
+            self.masks.append([dat.dataFrame['mask1'].to_numpy(),
+                               dat.dataFrame['mask2'].to_numpy()])
+            if self.all_points is None:
+                self.all_points = np.array([dat.dataFrame['R_pc'].to_numpy(),
+                                            dat.dataFrame['Circular_v'].to_numpy()])
+                self.all_points_n_line = np.zeros(len(dat.dataFrame))
+                self.all_points_n_line[self.masks[-1][-1]] = 1
+            else:
+                self.all_points = np.concatenate((self.all_points,
+                                                 [dat.dataFrame['R_pc'].to_numpy(),
+                                                  dat.dataFrame['Circular_v'].to_numpy()]),
+                                                 axis=0)
+                new_points_n_line = np.ones(len(dat.dataFrame)) * i
+                new_points_n_line[self.masks[-1][-1]] = i + 1
+
+                self.all_points_n_line = np.concatenate((self.all_points_n_line,
+                                                        new_points_n_line))
+            i += 2
+        # self.ckdtree = scipy.spatial.cKDTree(self.all_points.T)
+        # print(self.all_points_n_line)
+        # print(self.all_points)
         self.plot_rc()
         return self.slits, self.masks
 
     def plot_rc(self):
         self.axes_plot.set_ylabel('Circular Velocity, km/s')
         self.axes_plot.set_xlabel('R, parsec')
-        for dat_sp, mask, i in zip(self.data, self.masks, range(0, 20, 2)):
+        for dat_sp in self.data:
             dat = dat_sp.dataFrame
             verr = dat['Circular_v_err'].to_numpy()
-            mask1, mask2 = mask
+            mask1, mask2 = dat['mask1'], dat['mask2']
             if len(mask1[mask1]) > 0:
                 self.axes_plot.errorbar(
                     dat['R_pc'][mask1],
@@ -494,7 +447,6 @@ class PlotWidget(QWidget):
         self.calc_dist()
         self.gal_p.dist = self.dist_input.value()
         self.gal_p.update_frame()
-        self.calc_dist()
 
     # def fineMovements(self):
     #     # QApplication.setOverrideCursor(Qt.CrossCursor)
