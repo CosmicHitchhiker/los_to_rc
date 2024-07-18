@@ -156,7 +156,9 @@ class csvPlot:
         if event.inaxes != self.axes_plot: return
 
         print('Click!')
-        self.axes_plot.plot(1000, 1000, 'ro')
+        x, y = self.all_points[self.ckdtree.query([event.xdata / self.scale_x,
+                                                   event.ydata / self.scale_y])[1]]
+        self.axes_plot.plot(x, y, 'ro')
         self.axes_plot.figure.canvas.draw()
 
     def calc_rc(self, gal_p):
@@ -164,30 +166,37 @@ class csvPlot:
         #     dist = sys_vel / 70.
         self.axes_plot.clear()
         self.masks = []
-        self.all_points = None
-        self.all_points_n_line = None
+        self.all_points = np.array([]).reshape((0, 2))
+        self.all_points_n_line = np.array([])
         i = 0
         for dat in self.data:
             dat.los_to_rc(gal_p)
             self.masks.append([dat.dataFrame['mask1'].to_numpy(),
                                dat.dataFrame['mask2'].to_numpy()])
-            if self.all_points is None:
-                self.all_points = np.array([dat.dataFrame['R_pc'].to_numpy(),
-                                            dat.dataFrame['Circular_v'].to_numpy()])
-                self.all_points_n_line = np.zeros(len(dat.dataFrame))
-                self.all_points_n_line[self.masks[-1][-1]] = 1
-            else:
-                self.all_points = np.concatenate((self.all_points,
-                                                 [dat.dataFrame['R_pc'].to_numpy(),
-                                                  dat.dataFrame['Circular_v'].to_numpy()]),
-                                                 axis=0)
-                new_points_n_line = np.ones(len(dat.dataFrame)) * i
-                new_points_n_line[self.masks[-1][-1]] = i + 1
 
-                self.all_points_n_line = np.concatenate((self.all_points_n_line,
-                                                        new_points_n_line))
-            i += 2
-        # self.ckdtree = scipy.spatial.cKDTree(self.all_points.T)
+            new_points = np.array([dat.dataFrame['R_pc'],
+                                   dat.dataFrame['Circular_v']]).T
+            self.all_points = np.concatenate((self.all_points,
+                                              new_points[self.masks[-1][-2]]),
+                                             axis=0)
+            self.all_points = np.concatenate((self.all_points,
+                                              new_points[self.masks[-1][-1]]),
+                                             axis=0)
+            new_index = np.ones(len(new_points[self.masks[-1][-2]])) * i
+            self.all_points_n_line = np.concatenate((self.all_points_n_line,
+                                                     new_index))
+            i += 1
+            new_index = np.ones(len(new_points[self.masks[-1][-1]])) * i
+            self.all_points_n_line = np.concatenate((self.all_points_n_line,
+                                                     new_index))
+            i += 1
+        ckd_data = self.all_points.copy()
+        self.scale_x = (ckd_data[:, 0].max() - ckd_data[:, 0].min())
+        self.scale_y = (ckd_data[:, 1].max() - ckd_data[:, 1].min())
+        ckd_data[:, 0] = ckd_data[:, 0] / self.scale_x
+        ckd_data[:, 1] = ckd_data[:, 1]/ self.scale_y
+        print(self.all_points)
+        self.ckdtree = scipy.spatial.cKDTree(ckd_data)
         # print(self.all_points_n_line)
         # print(self.all_points)
         self.plot_rc()

@@ -89,9 +89,7 @@ class slitParams:
         # mask = mask & mask_center
         # mask = mask & mask_cone
 
-        # lat = np.array(rel_slit_corr.lat.to(u.arcsec)/u.arcsec)
-        # minor_ax = np.argmin(np.abs(lat))
-
+        # the closest point to the center of the galaxy
         closest_point = np.argmin(np.abs(r_slit))
 
         first_side = (slit_pos >= slit_pos[closest_point])
