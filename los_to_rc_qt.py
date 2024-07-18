@@ -12,8 +12,7 @@ from astropy.visualization import simple_norm
 from astropy.io import fits
 from astropy.wcs import WCS
 import astropy.units as u
-from astropy.coordinates import SkyCoord, ICRS
-import pandas as pd
+from astropy.coordinates import SkyCoord
 # from itertools import zip_longest, chain
 from matplotlib import colormaps
 
@@ -38,7 +37,7 @@ from PySide6.QtWidgets import (
 from OpenFile import OpenFile
 from radecSpinBox import radecSpinBox
 from astroPatches import rotatedEllipse
-from InputFiles import InputDialog, slitParams
+from InputFiles import InputDialog
 matplotlib.use('QtAgg')
 
 
@@ -71,7 +70,7 @@ def los_to_rc(data, slit, gal_frame, inclination, sys_vel, dist,
     gal_center = SkyCoord(0 * u.deg, 0 * u.deg, frame=gal_frame)
     rel_slit = slit.transform_to(gal_frame)
 
-    dist = dist * 1000000 * u.parsec
+    dist = dist * 1e+6 * u.parsec
     # dist = sys_vel / H0
     # Исправляем за наклон галактики
     rel_slit_corr = SkyCoord(rel_slit.lon / np.cos(inclination), rel_slit.lat,
