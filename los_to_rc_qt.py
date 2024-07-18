@@ -41,15 +41,6 @@ from InputFiles import InputDialog
 matplotlib.use('QtAgg')
 
 
-def plot_slit_points(ax, rel_slit, masks=None, gal_frame=None):
-    if masks is None:
-        masks = [np.ones(len(rel_slit)).astype(bool)]
-    for mask in masks:
-        if len(mask[mask]) > 0:
-            ax.plot(rel_slit.ra[mask], rel_slit.dec[mask], marker='.',
-                    linestyle='', transform=ax.get_transform(gal_frame))
-
-
 def los_to_rc(data, slit, gal_frame, inclination, sys_vel, dist,
               verr_lim=200):
     """
@@ -166,39 +157,18 @@ class galaxyImage:
         self.axes_gal = self.figure.subplots(
             subplot_kw={'projection': self.wcs})
         self.axes_gal.imshow(self.image.data, cmap='bone', norm=self.norm_im)
-        # "Стираем" чёрточки по краям картинки
-        # self.axes_gal.coords['ra'].set_ticks(color='white')
-        # self.axes_gal.coords['dec'].set_ticks(color='white')
 
         if gal_p is not None:
             self.gal_frame = gal_p.frame
-            # self.overlay = self.axes_gal.get_coords_overlay(self.gal_frame)
-            # # "Стираем" чёрточки по краям картинки
-            # self.overlay['lon'].set_ticks(color='white')
-            # self.overlay['lat'].set_ticks(color='white')
-            # self.overlay['lon'].set_ticklabel(alpha=0)
-            # self.overlay['lat'].set_ticklabel(alpha=0)
-            # self.overlay.grid(color='white', linestyle='solid', alpha=0.5)
             # plot center of the galaxy
-            self.axes_gal.plot(0, 0, 'r+', ms=10,
-                               transform=self.axes_gal.get_transform(self.gal_frame))
+            # self.axes_gal.plot(0, 0, 'r+', ms=10,
+            #                    transform=self.axes_gal.get_transform(self.gal_frame))
             self.plot_ellipses(gal_p.dist, gal_p.i)
-
-        if self.slits is not None:
-            self.plot_slit(self.slits, self.masks)
-
-        # plot_galaxy(self.axes_gal, self.image, self.gal_frame)
 
     # TODO: slitParams
     def plot_slit(self, slits, masks):
         self.slits = slits
         self.masks = masks
-        for slit, mask in zip(slits, masks):
-            plot_slit_points(self.axes_gal, slit, mask,
-                             'icrs')
-
-        for line in self.axes_gal.lines:
-            list(self.axes_gal.lines).remove(line)
 
         for slit, mask, i in zip(slits, masks, range(0, 20, 2)):
             mask1, mask2 = mask
@@ -219,7 +189,7 @@ class galaxyImage:
                     transform=self.axes_gal.get_transform('icrs'),
                     color=self.colors[i + 1])
 
-    def get_center(self):
+    def get_image_center(self):
         center = np.array(np.shape(self.image)) * 0.5
         cent_coord = self.wcs.pixel_to_world(*center)
         return cent_coord
@@ -230,11 +200,14 @@ class galaxyImage:
         for a in ang_r:
             self.plot_ellips(a, i)
 
-    def plot_ellips(self, r, i):
+        self.plot_ellips(u.arcsec * 3, 90, theta=0 * u.deg, col='red', lw=1.5)
+        self.plot_ellips(u.arcsec * 3, 90, col='red', lw=1.5)
+
+    def plot_ellips(self, r, i, theta=90 * u.deg, col='tab:olive', lw=0.5):
         el = rotatedEllipse([0 * u.deg, 0 * u.deg],
                             r, r*np.cos(np.radians(i)),
-                            theta=90 * u.deg,
-                            edgecolor='tab:olive', facecolor='none', lw=0.5,
+                            theta=theta,
+                            edgecolor=col, facecolor='none', lw=lw,
                             transform=self.axes_gal.get_transform(self.gal_frame))
         self.axes_gal.add_patch(el)
         pass
@@ -489,7 +462,7 @@ class PlotWidget(QWidget):
             self.gal_fig.figure.clear()
             image = fits.open(self.image_field.files)[0]
             self.galIm = galaxyImage(self.gal_fig.figure, image)
-            im_center = self.galIm.get_center()
+            im_center = self.galIm.get_image_center()
             if im_center.separation(self.gal_p.center) > 1 * u.deg:
                 self.ra_input.setValue(im_center.ra)
                 self.dec_input.setValue(im_center.dec)
