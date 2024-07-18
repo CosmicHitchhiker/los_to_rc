@@ -20,8 +20,7 @@ from matplotlib import colormaps
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
-from PySide6.QtCore import Slot, Qt
-from PySide6.QtGui import QShortcut, QKeySequence
+from PySide6.QtCore import Slot
 from PySide6.QtWidgets import (
     QApplication,
     QWidget,
@@ -38,6 +37,7 @@ from OpenFile import OpenFile
 from radecSpinBox import radecSpinBox
 from astroPatches import rotatedEllipse
 from InputFiles import InputDialog
+from FineMovements import FineMovementsDialog
 matplotlib.use('QtAgg')
 
 
@@ -305,17 +305,9 @@ class PlotWidget(QWidget):
         self.saveres_button = QPushButton(text='Save Results')
         self.fine_button = QPushButton(text='Fine movements')
         self.manage_csv_button = QPushButton(text='Manage CSV files')
-        # Keyboard Shortcuts (for fine movements)
-        self.left_shortcut = QShortcut(QKeySequence('Left'), self)
-        self.right_shortcut = QShortcut(QKeySequence('Right'), self)
-        self.up_shortcut = QShortcut(QKeySequence('Up'), self)
-        self.down_shortcut = QShortcut(QKeySequence('Down'), self)
-        self.fine_shortcuts = [self.left_shortcut,
-                               self.right_shortcut,
-                               self.up_shortcut,
-                               self.down_shortcut]
         # Dialogs
         self.manage_csv = InputDialog(self)
+        self.fine_dialog = FineMovementsDialog(self)
 
         # Configure all widgets
         self.configureElements(frame, csv, inclination, pa, refcenter, velocity)
@@ -336,13 +328,11 @@ class PlotWidget(QWidget):
         self.dist_input.valueChanged.connect(self.galFrameChanged)
         self.saveres_button.clicked.connect(self.save_rc)
         self.dist_checkbox.stateChanged.connect(self.galFrameChanged)
-        self.fine_button.clicked.connect(self.fineMovements)
-        self.left_shortcut.activated.connect(lambda: self.ra_input.stepBy(0.1))
-        self.right_shortcut.activated.connect(lambda: self.ra_input.stepBy(-0.1))
-        self.up_shortcut.activated.connect(lambda: self.dec_input.stepBy(0.1))
-        self.down_shortcut.activated.connect(lambda: self.dec_input.stepBy(-0.1))
+        self.fine_button.clicked.connect(lambda: self.fine_dialog.show())
         self.manage_csv_button.clicked.connect(lambda: self.manage_csv.show())
         self.manage_csv.accepted.connect(self.csvChanged)
+        self.fine_dialog.move_ra.connect(self.ra_input.stepBy)
+        self.fine_dialog.move_dec.connect(self.dec_input.stepBy)
 
     def configureElements(self, frame, csv, inclination, pa, refcenter,
                           velocity):
@@ -382,9 +372,6 @@ class PlotWidget(QWidget):
         self.dist_input.setDisabled(False)
 
         self.dist_checkbox.setToolTip('Assuming H0=70km/s/Mpc')
-
-        self.fine_button.setCheckable(True)
-        self.fineMovements()
 
     def configureLayout(self):
         # Layout
@@ -471,7 +458,6 @@ class PlotWidget(QWidget):
 
         if self.csv_changed:
             self.plot_fig.figure.clear()
-            data = [x.dataFrame for x in self.manage_csv.data]
             self.csvGraph = csvPlot(self.manage_csv.data, self.plot_fig.figure)
             slits, masks = self.csvGraph.calc_rc(self.gal_p)
             if self.galIm is not None:
@@ -510,16 +496,16 @@ class PlotWidget(QWidget):
         self.gal_p.update_frame()
         self.calc_dist()
 
-    def fineMovements(self):
-        # QApplication.setOverrideCursor(Qt.CrossCursor)
-        self.fine_active = self.fine_button.isChecked()
-        print('Fine movements are active: ', self.fine_active)
-        if self.fine_active:
-            for s in self.fine_shortcuts:
-                s.blockSignals(False)
-        else:
-            for s in self.fine_shortcuts:
-                s.blockSignals(True)
+    # def fineMovements(self):
+    #     # QApplication.setOverrideCursor(Qt.CrossCursor)
+    #     self.fine_active = self.fine_button.isChecked()
+    #     print('Fine movements are active: ', self.fine_active)
+    #     if self.fine_active:
+    #         for s in self.fine_shortcuts:
+    #             s.blockSignals(False)
+    #     else:
+    #         for s in self.fine_shortcuts:
+    #             s.blockSignals(True)
 
 
 if __name__ == "__main__":
