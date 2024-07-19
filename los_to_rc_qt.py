@@ -15,6 +15,7 @@ import astropy.units as u
 from astropy.coordinates import SkyCoord
 # from itertools import zip_longest, chain
 from matplotlib import colormaps
+from matplotlib.backend_bases import MouseButton
 
 # from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
@@ -140,34 +141,57 @@ class galaxyImage:
 
 class csvPlot:
     def __init__(self, data, figure):
-        self.colors = colormaps['tab20'](np.linspace(0, 1, 20))
+        self.figure = figure
         # data - list of slitParams
         self.data = data
         self.slits = [x.slitpos for x in self.data]
         self.masks = []
         self.axes_plot = figure.subplots()
-        self.axes_plot.figure.canvas.mpl_connect('button_press_event', self.on_click)
+        self.figure.canvas.mpl_connect('button_press_event', self.on_click)
         # object to find the closest point in a set
         self.ckdtree = None
         self.all_points = None
         self.all_points_n_line = None
+        self.point_chosen = False
+        self.point = None
+        self.index_chosen = None
+        self.last_gal_p = None
+        self.scale_x = 1.
+        self.scale_y = 1.
 
     def on_click(self, event):
         if event.inaxes != self.axes_plot: return
-
-        print('Click!')
-        x, y = self.all_points[self.ckdtree.query([event.xdata / self.scale_x,
-                                                   event.ydata / self.scale_y])[1]]
-        self.axes_plot.plot(x, y, 'ro')
-        self.axes_plot.figure.canvas.draw()
+        if not self.point_chosen and event.button is MouseButton.RIGHT:
+            self.index_chosen = self.ckdtree.query([event.xdata / self.scale_x,
+                                                    event.ydata / self.scale_y])[1]
+            x, y = self.all_points[self.index_chosen]
+            self.point = self.axes_plot.plot(x, y, 'ro')[0]
+            self.figure.canvas.draw()
+            self.point_chosen = True
+            return
+        elif self.point_chosen:
+            if event.button is MouseButton.RIGHT:
+                n_line = self.all_points_n_line[self.index_chosen]
+                min_i_n_line = np.arange(len(self.all_points_n_line))[(self.all_points_n_line == n_line)].min()
+                self.data[n_line].del_element(self.index_chosen - min_i_n_line)
+                self.calc_rc(self.last_gal_p)
+                self.point_chosen = False
+            if event.button is MouseButton.LEFT:
+                self.point_chosen = False
+                self.point.remove()
+                self.figure.canvas.draw()
 
     def calc_rc(self, gal_p):
+        self.last_gal_p = gal_p
+        self.slits = [x.slitpos for x in self.data]
         # if dist is None:
         #     dist = sys_vel / 70.
-        self.axes_plot.clear()
+        self.figure.clear()
+        self.axes_plot = self.figure.subplots()
+        self.figure.canvas.mpl_connect('button_press_event', self.on_click)
         self.masks = []
         self.all_points = np.array([]).reshape((0, 2))
-        self.all_points_n_line = np.array([])
+        self.all_points_n_line = np.array([], dtype=int)
         i = 0
         for dat in self.data:
             dat.los_to_rc(gal_p)
@@ -176,17 +200,10 @@ class csvPlot:
 
             new_points = np.array([dat.dataFrame['R_pc'],
                                    dat.dataFrame['Circular_v']]).T
+            new_mask = self.masks[-1][-2] | self.masks[-1][-1]
             self.all_points = np.concatenate((self.all_points,
-                                              new_points[self.masks[-1][-2]]),
-                                             axis=0)
-            self.all_points = np.concatenate((self.all_points,
-                                              new_points[self.masks[-1][-1]]),
-                                             axis=0)
-            new_index = np.ones(len(new_points[self.masks[-1][-2]])) * i
-            self.all_points_n_line = np.concatenate((self.all_points_n_line,
-                                                     new_index))
-            i += 1
-            new_index = np.ones(len(new_points[self.masks[-1][-1]])) * i
+                                              new_points[new_mask]))
+            new_index = np.ones(len(new_points[new_mask]), dtype=int) * i
             self.all_points_n_line = np.concatenate((self.all_points_n_line,
                                                      new_index))
             i += 1
@@ -194,12 +211,10 @@ class csvPlot:
         self.scale_x = (ckd_data[:, 0].max() - ckd_data[:, 0].min())
         self.scale_y = (ckd_data[:, 1].max() - ckd_data[:, 1].min())
         ckd_data[:, 0] = ckd_data[:, 0] / self.scale_x
-        ckd_data[:, 1] = ckd_data[:, 1]/ self.scale_y
-        print(self.all_points)
+        ckd_data[:, 1] = ckd_data[:, 1] / self.scale_y
         self.ckdtree = scipy.spatial.cKDTree(ckd_data)
-        # print(self.all_points_n_line)
-        # print(self.all_points)
         self.plot_rc()
+        self.figure.canvas.draw()
         return self.slits, self.masks
 
     def plot_rc(self):
@@ -456,17 +471,6 @@ class PlotWidget(QWidget):
         self.calc_dist()
         self.gal_p.dist = self.dist_input.value()
         self.gal_p.update_frame()
-
-    # def fineMovements(self):
-    #     # QApplication.setOverrideCursor(Qt.CrossCursor)
-    #     self.fine_active = self.fine_button.isChecked()
-    #     print('Fine movements are active: ', self.fine_active)
-    #     if self.fine_active:
-    #         for s in self.fine_shortcuts:
-    #             s.blockSignals(False)
-    #     else:
-    #         for s in self.fine_shortcuts:
-    #             s.blockSignals(True)
 
 
 if __name__ == "__main__":

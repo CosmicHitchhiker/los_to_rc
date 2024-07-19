@@ -47,7 +47,7 @@ class slitParams:
         """
         # H0 = 70 / (1e+6 * u.parsec)
         if 'position' in self.dataFrame:
-            slit_pos = self.dataFrame['position']
+            slit_pos = self.dataFrame['position'].to_numpy()
         else:
             slit_pos = self.slitpos.separation(self.slitpos[0]).to(u.arcsec)
 
@@ -106,3 +106,11 @@ class slitParams:
 
         return self.dataFrame
 
+    def del_element(self, index):
+        mask = (self.dataFrame['mask1'] | self.dataFrame['mask2'])
+        i = self.dataFrame[mask].iloc[[index]].index.values[0]
+        self.dataFrame.drop(i, inplace=True)
+        self.slitpos = SkyCoord(self.dataFrame['RA'],
+                                self.dataFrame['DEC'],
+                                frame='icrs',
+                                unit=(u.hourangle, u.deg))
