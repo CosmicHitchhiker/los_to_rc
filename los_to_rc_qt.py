@@ -36,6 +36,7 @@ from radecSpinBox import radecSpinBox
 from astroPatches import rotatedEllipse
 from InputFiles import InputDialog
 from FineMovements import FineMovementsDialog
+from slitParams import slitParams
 matplotlib.use('QtAgg')
 
 
@@ -69,6 +70,7 @@ class galaxyImage:
                                   frame='icrs').skyoffset_frame()
 
     def add_image(self, image):
+        self.figure.clear()
         self.wcs = WCS(image.header)
         self.axes_gal = self.figure.subplots(
             subplot_kw={'projection': self.wcs})
@@ -105,6 +107,7 @@ class galaxyImage:
                     linestyle='',
                     transform=self.axes_gal.get_transform('icrs'),
                     color=dat.colors[1])
+        self.figure.canvas.draw()
 
     def get_image_center(self):
         center = np.array(np.shape(self.image)) * 0.5
@@ -132,11 +135,10 @@ class galaxyImage:
 
 
 class csvPlot:
-    def __init__(self, data, figure):
+    def __init__(self, figure):
         self.figure = figure
-        # data - list of slitParams
-        self.data = data
-        self.axes_plot = figure.subplots()
+        self.data: list[slitParams] = []
+        self.axes_plot: matplotlib.axes.Axes | None = None
         self.figure.canvas.mpl_connect('button_press_event', self.on_click)
         # object to find the closest point in a set
         self.ckdtree = None
@@ -148,6 +150,11 @@ class csvPlot:
         self.last_gal_p = None
         self.scale_x = 1.
         self.scale_y = 1.
+
+    def add_data(self, data):
+        self.figure.clear()
+        self.data = data
+        self.axes_plot = self.figure.subplots()
 
     def on_click(self, event):
         if event.inaxes != self.axes_plot: return
@@ -173,9 +180,7 @@ class csvPlot:
 
     def calc_rc(self, gal_p):
         self.last_gal_p = gal_p
-        self.figure.clear()
-        self.axes_plot = self.figure.subplots()
-        self.figure.canvas.mpl_connect('button_press_event', self.on_click)
+        self.axes_plot.clear()
         self.all_points = np.array([]).reshape((0, 2))
         self.all_points_n_line = np.array([], dtype=int)
         for i, dat in enumerate(self.data):
@@ -195,7 +200,6 @@ class csvPlot:
         ckd_data[:, 1] = ckd_data[:, 1] / self.scale_y
         self.ckdtree = scipy.spatial.cKDTree(ckd_data)
         self.plot_rc()
-        self.figure.canvas.draw()
 
     def plot_rc(self):
         self.axes_plot.set_ylabel('Circular Velocity, km/s')
@@ -220,6 +224,7 @@ class csvPlot:
                     linestyle='',
                     marker='.',
                     color=dat_sp.colors[1])
+        self.figure.canvas.draw()
 
     def return_rc(self):
         return self.data
@@ -230,8 +235,6 @@ class PlotWidget(QWidget):
                  inclination=0., velocity=0.):
         super().__init__(parent)
 
-        self.gal_changed = False
-        self.csv_changed = False
         self.fine_active = False
 
         # create widgets
@@ -271,12 +274,10 @@ class PlotWidget(QWidget):
         self.configureLayout()
 
         self.galIm = galaxyImage(self.gal_fig.figure)
-        self.csvGraph = None
+        self.csvGraph = csvPlot(self.plot_fig.figure)
         self.gal_p = galParams()
 
         self.redraw_button.clicked.connect(self.redraw)
-        # self.csv_field.changed_path.connect(self.csvChanged)
-        self.image_field.changed_path.connect(self.galChanged)
         self.PA_input.valueChanged.connect(self.galFrameChanged)
         self.ra_input.valueChanged.connect(self.galFrameChanged)
         self.dec_input.valueChanged.connect(self.galFrameChanged)
@@ -287,7 +288,6 @@ class PlotWidget(QWidget):
         self.dist_checkbox.stateChanged.connect(self.galFrameChanged)
         self.fine_button.clicked.connect(lambda: self.fine_dialog.show())
         self.manage_csv_button.clicked.connect(lambda: self.manage_csv.show())
-        self.manage_csv.accepted.connect(self.csvChanged)
         self.fine_dialog.move_ra.connect(self.ra_input.stepBy)
         self.fine_dialog.move_dec.connect(self.dec_input.stepBy)
 
@@ -295,14 +295,12 @@ class PlotWidget(QWidget):
                           velocity):
         if frame is not None:
             self.image_field.fill_string(frame)
-            self.gal_changed = True
 
         if csv is not None:
             for csv_path in csv:
                 self.manage_csv.add_file(csv_path)
             # csv = ', '.join(csv)
             # self.csv_field.fill_string(csv)
-            self.csv_changed = True
 
         self.i_input.setKeyboardTracking(False)
         self.i_input.setValue(inclination)
@@ -367,14 +365,6 @@ class PlotWidget(QWidget):
         self.setLayout(glayout)
 
     @Slot()
-    def galChanged(self):
-        self.gal_changed = True
-
-    @Slot()
-    def csvChanged(self):
-        self.csv_changed = True
-
-    @Slot()
     def calc_dist(self):
         if self.dist_checkbox.isChecked():
             self.dist_input.setValue(self.vel_input.value() / 70.)
@@ -388,42 +378,23 @@ class PlotWidget(QWidget):
         self.galIm.plot_galaxy(self.gal_p)
         self.csvGraph.calc_rc(self.gal_p)
         self.galIm.plot_slit(self.csvGraph.data)
-        self.gal_fig.draw()
-        self.plot_fig.draw()
-
-    @Slot()
-    def kinematicsChanged(self):
-        self.updateValues()
-        self.csvGraph.calc_rc(self.gal_p)
-        self.plot_fig.draw()
 
     @Slot()
     def redraw(self):
         """ Update the plot with the current input values """
         self.updateValues()
 
-        if self.gal_changed:
-            self.gal_fig.figure.clear()
-            image = fits.open(self.image_field.files)[0]
-            self.galIm.add_image(image)
-            im_center = self.galIm.get_image_center()
-            if im_center.separation(self.gal_p.center) > 1 * u.deg:
-                self.ra_input.setValue(im_center.ra)
-                self.dec_input.setValue(im_center.dec)
-            self.galIm.plot_galaxy(self.gal_p)
-            self.gal_changed = False
+        image = fits.open(self.image_field.files)[0]
+        self.galIm.add_image(image)
+        im_center = self.galIm.get_image_center()
+        if im_center.separation(self.gal_p.center) > 1 * u.deg:
+            self.ra_input.setValue(im_center.ra)
+            self.dec_input.setValue(im_center.dec)
+        self.galIm.plot_galaxy(self.gal_p)
 
-        if self.csv_changed:
-            self.plot_fig.figure.clear()
-            self.csvGraph = csvPlot(self.manage_csv.data, self.plot_fig.figure)
-            self.csvGraph.calc_rc(self.gal_p)
-            if self.galIm is not None:
-                self.galIm.plot_galaxy(self.gal_p)
-                self.galIm.plot_slit(self.csvGraph.data)
-            self.csv_changed = False
-
-        self.gal_fig.draw()
-        self.plot_fig.draw()
+        self.csvGraph.add_data(self.manage_csv.data)
+        self.csvGraph.calc_rc(self.gal_p)
+        self.galIm.plot_slit(self.csvGraph.data)
 
     @Slot()
     def save_rc(self):
