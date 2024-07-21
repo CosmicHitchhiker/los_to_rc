@@ -61,15 +61,12 @@ class galParams:
 
 class galaxyImage:
     def __init__(self, figure, image):
-        self.colors = colormaps['tab20'](np.linspace(0, 1, 20))
         self.wcs = WCS(image.header)
         self.figure = figure
         self.axes_gal = figure.subplots(
             subplot_kw={'projection': self.wcs})
         self.image = image
         self.norm_im = simple_norm(image.data, 'linear', percent=99.3)
-        self.slits = None
-        self.masks = None
         self.slit_draws = None
         self.ellipses = []
         # just default value, replaced with the real galaxy coordinate frame later
@@ -91,29 +88,25 @@ class galaxyImage:
             #                    transform=self.axes_gal.get_transform(self.gal_frame))
             self.plot_ellipses(gal_p.dist, gal_p.i)
 
-    # TODO: slitParams
-    def plot_slit(self, slits, masks):
-        self.slits = slits
-        self.masks = masks
-
-        for slit, mask, i in zip(slits, masks, range(0, 20, 2)):
-            mask1, mask2 = mask
+    def plot_slit(self, data):
+        for dat in data:
+            mask1, mask2 = dat.dataFrame['mask1'], dat.dataFrame['mask2']
             if len(mask1[mask1]) > 0:
                 self.axes_gal.plot(
-                    slit.ra[mask1],
-                    slit.dec[mask1],
+                    dat.slitpos.ra[mask1],
+                    dat.slitpos.dec[mask1],
                     marker='.',
                     linestyle='',
                     transform=self.axes_gal.get_transform('icrs'),
-                    color=self.colors[i])
+                    color=dat.colors[0])
             if len(mask2[mask2]) > 0:
                 self.axes_gal.plot(
-                    slit.ra[mask2],
-                    slit.dec[mask2],
+                    dat.slitpos.ra[mask2],
+                    dat.slitpos.dec[mask2],
                     marker='.',
                     linestyle='',
                     transform=self.axes_gal.get_transform('icrs'),
-                    color=self.colors[i + 1])
+                    color=dat.colors[1])
 
     def get_image_center(self):
         center = np.array(np.shape(self.image)) * 0.5
@@ -407,7 +400,7 @@ class PlotWidget(QWidget):
         self.updateValues()
         self.galIm.plot_galaxy(self.gal_p)
         slits, masks = self.csvGraph.calc_rc(self.gal_p)
-        self.galIm.plot_slit(slits, masks)
+        self.galIm.plot_slit(self.csvGraph.data)
         self.gal_fig.draw()
         self.plot_fig.draw()
 
@@ -439,7 +432,7 @@ class PlotWidget(QWidget):
             slits, masks = self.csvGraph.calc_rc(self.gal_p)
             if self.galIm is not None:
                 self.galIm.plot_galaxy(self.gal_p)
-                self.galIm.plot_slit(slits, masks)
+                self.galIm.plot_slit(self.csvGraph.data)
             self.csv_changed = False
 
         self.gal_fig.draw()
