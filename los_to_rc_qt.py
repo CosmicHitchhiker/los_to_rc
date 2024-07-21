@@ -60,19 +60,23 @@ class galParams:
 
 
 class galaxyImage:
-    def __init__(self, figure, image):
-        self.wcs = WCS(image.header)
+    def __init__(self, figure):
         self.figure = figure
-        self.axes_gal = figure.subplots(
-            subplot_kw={'projection': self.wcs})
-        self.image = image
-        self.norm_im = simple_norm(image.data, 'linear', percent=99.3)
-        self.slit_draws = None
+        self.wcs: WCS | None = None
+        self.image: np.ndarray | None = None
+        self.axes_gal: matplotlib.axes.Axes | None = None
+        self.norm_im: matplotlib.colors.Normalize | None = None
         self.ellipses = []
         # just default value, replaced with the real galaxy coordinate frame later
         self.gal_frame = SkyCoord(0, 0, unit=(u.deg, u.deg),
                                   frame='icrs').skyoffset_frame()
-        self.overlay = self.axes_gal.get_coords_overlay(self.gal_frame)
+
+    def add_image(self, image):
+        self.wcs = WCS(image.header)
+        self.axes_gal = self.figure.subplots(
+            subplot_kw={'projection': self.wcs})
+        self.image = image
+        self.norm_im = simple_norm(image.data, 'linear', percent=99.3)
         self.plot_galaxy()
 
     def plot_galaxy(self, gal_p=None):
@@ -83,9 +87,6 @@ class galaxyImage:
 
         if gal_p is not None:
             self.gal_frame = gal_p.frame
-            # plot center of the galaxy
-            # self.axes_gal.plot(0, 0, 'r+', ms=10,
-            #                    transform=self.axes_gal.get_transform(self.gal_frame))
             self.plot_ellipses(gal_p.dist, gal_p.i)
 
     def plot_slit(self, data):
@@ -119,6 +120,7 @@ class galaxyImage:
         for a in ang_r:
             self.plot_ellips(a, i)
 
+        # center marker
         self.plot_ellips(u.arcsec * 3, 90, theta=0 * u.deg, col='red', lw=1.5)
         self.plot_ellips(u.arcsec * 3, 90, col='red', lw=1.5)
 
@@ -283,7 +285,7 @@ class PlotWidget(QWidget):
         self.configureElements(frame, csv, inclination, pa, refcenter, velocity)
         self.configureLayout()
 
-        self.galIm = None
+        self.galIm = galaxyImage(self.gal_fig.figure)
         self.csvGraph = None
         self.gal_p = galParams()
 
@@ -418,7 +420,7 @@ class PlotWidget(QWidget):
         if self.gal_changed:
             self.gal_fig.figure.clear()
             image = fits.open(self.image_field.files)[0]
-            self.galIm = galaxyImage(self.gal_fig.figure, image)
+            self.galIm.add_image(image)
             im_center = self.galIm.get_image_center()
             if im_center.separation(self.gal_p.center) > 1 * u.deg:
                 self.ra_input.setValue(im_center.ra)
