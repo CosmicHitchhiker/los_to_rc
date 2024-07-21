@@ -13,11 +13,8 @@ from astropy.io import fits
 from astropy.wcs import WCS
 import astropy.units as u
 from astropy.coordinates import SkyCoord
-# from itertools import zip_longest, chain
-from matplotlib import colormaps
 from matplotlib.backend_bases import MouseButton
 
-# from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
@@ -139,8 +136,6 @@ class csvPlot:
         self.figure = figure
         # data - list of slitParams
         self.data = data
-        self.slits = [x.slitpos for x in self.data]
-        self.masks = []
         self.axes_plot = figure.subplots()
         self.figure.canvas.mpl_connect('button_press_event', self.on_click)
         # object to find the closest point in a set
@@ -178,30 +173,21 @@ class csvPlot:
 
     def calc_rc(self, gal_p):
         self.last_gal_p = gal_p
-        self.slits = [x.slitpos for x in self.data]
-        # if dist is None:
-        #     dist = sys_vel / 70.
         self.figure.clear()
         self.axes_plot = self.figure.subplots()
         self.figure.canvas.mpl_connect('button_press_event', self.on_click)
-        self.masks = []
         self.all_points = np.array([]).reshape((0, 2))
         self.all_points_n_line = np.array([], dtype=int)
-        i = 0
-        for dat in self.data:
+        for i, dat in enumerate(self.data):
             dat.los_to_rc(gal_p)
-            self.masks.append([dat.dataFrame['mask1'].to_numpy(),
-                               dat.dataFrame['mask2'].to_numpy()])
-
             new_points = np.array([dat.dataFrame['R_pc'],
                                    dat.dataFrame['Circular_v']]).T
-            new_mask = self.masks[-1][-2] | self.masks[-1][-1]
+            new_mask = dat.dataFrame['mask1'] | dat.dataFrame['mask2']
             self.all_points = np.concatenate((self.all_points,
                                               new_points[new_mask]))
             new_index = np.ones(len(new_points[new_mask]), dtype=int) * i
             self.all_points_n_line = np.concatenate((self.all_points_n_line,
                                                      new_index))
-            i += 1
         ckd_data = self.all_points.copy()
         self.scale_x = (ckd_data[:, 0].max() - ckd_data[:, 0].min())
         self.scale_y = (ckd_data[:, 1].max() - ckd_data[:, 1].min())
@@ -210,7 +196,6 @@ class csvPlot:
         self.ckdtree = scipy.spatial.cKDTree(ckd_data)
         self.plot_rc()
         self.figure.canvas.draw()
-        return self.slits, self.masks
 
     def plot_rc(self):
         self.axes_plot.set_ylabel('Circular Velocity, km/s')
@@ -401,7 +386,7 @@ class PlotWidget(QWidget):
     def galFrameChanged(self):
         self.updateValues()
         self.galIm.plot_galaxy(self.gal_p)
-        slits, masks = self.csvGraph.calc_rc(self.gal_p)
+        self.csvGraph.calc_rc(self.gal_p)
         self.galIm.plot_slit(self.csvGraph.data)
         self.gal_fig.draw()
         self.plot_fig.draw()
@@ -431,7 +416,7 @@ class PlotWidget(QWidget):
         if self.csv_changed:
             self.plot_fig.figure.clear()
             self.csvGraph = csvPlot(self.manage_csv.data, self.plot_fig.figure)
-            slits, masks = self.csvGraph.calc_rc(self.gal_p)
+            self.csvGraph.calc_rc(self.gal_p)
             if self.galIm is not None:
                 self.galIm.plot_galaxy(self.gal_p)
                 self.galIm.plot_slit(self.csvGraph.data)
