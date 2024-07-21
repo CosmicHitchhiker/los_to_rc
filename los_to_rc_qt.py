@@ -18,7 +18,7 @@ from matplotlib.backend_bases import MouseButton
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Slot, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QWidget,
@@ -89,6 +89,7 @@ class galaxyImage:
             self.plot_ellipses(gal_p.dist, gal_p.i)
 
     def plot_slit(self, data):
+        [x.remove() for x in self.axes_gal.lines]
         for dat in data:
             mask1, mask2 = dat.dataFrame['mask1'], dat.dataFrame['mask2']
             if len(mask1[mask1]) > 0:
@@ -134,8 +135,11 @@ class galaxyImage:
         pass
 
 
-class csvPlot:
+class csvPlot(QWidget):
+    del_point = Signal(list)
+
     def __init__(self, figure):
+        super().__init__()
         self.figure = figure
         self.data: list[slitParams] = []
         self.axes_plot: matplotlib.axes.Axes | None = None
@@ -172,6 +176,7 @@ class csvPlot:
                 min_i_n_line = np.arange(len(self.all_points_n_line))[(self.all_points_n_line == n_line)].min()
                 self.data[n_line].del_element(self.index_chosen - min_i_n_line)
                 self.calc_rc(self.last_gal_p)
+                self.del_point.emit(self.data)
                 self.point_chosen = False
             if event.button is MouseButton.LEFT:
                 self.point_chosen = False
@@ -290,6 +295,7 @@ class PlotWidget(QWidget):
         self.manage_csv_button.clicked.connect(lambda: self.manage_csv.show())
         self.fine_dialog.move_ra.connect(self.ra_input.stepBy)
         self.fine_dialog.move_dec.connect(self.dec_input.stepBy)
+        self.csvGraph.del_point.connect(self.galIm.plot_slit)
 
     def configureElements(self, frame, csv, inclination, pa, refcenter,
                           velocity):
