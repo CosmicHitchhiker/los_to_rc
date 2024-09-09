@@ -121,6 +121,11 @@ class galaxyImage:
         for a in ang_r:
             self.plot_ellips(a, i)
 
+        # axis
+        rmax = u.radian * 20e-3 / d
+        self.plot_ellips(rmax * np.cos(np.radians(i)), 90, theta=0 * u.deg, col='tab:olive', lw=0.5)
+        self.plot_ellips(rmax, 90, col='tab:olive', lw=0.5)
+
         # center marker
         self.plot_ellips(u.arcsec * 3, 90, theta=0 * u.deg, col='red', lw=1.5)
         self.plot_ellips(u.arcsec * 3, 90, col='red', lw=1.5)
@@ -229,6 +234,8 @@ class csvPlot(QWidget):
                     linestyle='',
                     marker='.',
                     color=dat_sp.colors[1])
+        self.axes_plot.axhline(y=0, color='black', linestyle='--', lw=0.5)
+        self.axes_plot.axvline(x=0, color='black', linestyle='--', lw=0.5)
         self.figure.canvas.draw()
 
     def return_rc(self):
