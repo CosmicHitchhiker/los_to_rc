@@ -76,15 +76,14 @@ class galaxyImage:
             subplot_kw={'projection': self.wcs})
         self.image = image
         self.norm_im = simple_norm(image.data, 'linear', percent=99.3)
-        self.plot_galaxy()
+        self.axes_gal.imshow(self.image.data, cmap='bone', norm=self.norm_im)
+        # self.plot_galaxy()
 
     def plot_galaxy(self, gal_p=None):
         if self.axes_gal is None:
             return
-        self.axes_gal.clear()
-        self.axes_gal = self.figure.subplots(
-            subplot_kw={'projection': self.wcs})
-        self.axes_gal.imshow(self.image.data, cmap='bone', norm=self.norm_im)
+        while self.axes_gal.patches:
+            list(self.axes_gal.patches)[0].remove()
 
         if gal_p is not None:
             self.gal_frame = gal_p.frame
