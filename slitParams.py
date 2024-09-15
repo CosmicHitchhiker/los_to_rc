@@ -14,6 +14,8 @@ class slitParams:
         self.is_used = is_used
         try:
             self.dataFrame = pd.read_csv(self.csv_path)
+            self.dataFrame.dropna(subset=['velocity', 'velocity_err'],
+                                  inplace=True)
             self.slitpos = SkyCoord(self.dataFrame['RA'],
                                     self.dataFrame['DEC'],
                                     frame='icrs',
