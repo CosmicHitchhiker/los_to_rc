@@ -79,6 +79,8 @@ class galaxyImage:
         self.plot_galaxy()
 
     def plot_galaxy(self, gal_p=None):
+        if self.axes_gal is None:
+            return
         self.axes_gal.clear()
         self.axes_gal = self.figure.subplots(
             subplot_kw={'projection': self.wcs})
@@ -89,6 +91,8 @@ class galaxyImage:
             self.plot_ellipses(gal_p.dist, gal_p.i)
 
     def plot_slit(self, data):
+        if self.axes_gal is None:
+            return
         [x.remove() for x in self.axes_gal.lines]
         for dat in data:
             mask1, mask2 = dat.dataFrame['mask1'], dat.dataFrame['mask2']
@@ -189,6 +193,9 @@ class csvPlot(QWidget):
                 self.figure.canvas.draw()
 
     def calc_rc(self, gal_p):
+        # if it is None, that means there are no data
+        if self.axes_plot is None:
+            return
         self.last_gal_p = gal_p
         self.axes_plot.clear()
         self.all_points = np.array([]).reshape((0, 2))
