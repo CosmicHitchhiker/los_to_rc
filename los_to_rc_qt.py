@@ -306,8 +306,8 @@ class PlotWidget(QWidget):
         self.dist_checkbox.stateChanged.connect(self.galFrameChanged)
         self.fine_button.clicked.connect(lambda: self.fine_dialog.show())
         self.manage_csv_button.clicked.connect(lambda: self.manage_csv.show())
-        self.fine_dialog.move_ra.connect(self.ra_input.stepBy)
-        self.fine_dialog.move_dec.connect(self.dec_input.stepBy)
+        self.fine_dialog.move_ra.connect(self.ra_input.stepByAngle)
+        self.fine_dialog.move_dec.connect(self.dec_input.stepByAngle)
         self.csvGraph.del_point.connect(self.galIm.plot_slit)
 
     def configureElements(self, frame, csv, inclination, pa, refcenter,
@@ -443,6 +443,11 @@ class PlotWidget(QWidget):
         self.calc_dist()
         self.gal_p.dist = self.dist_input.value()
         self.gal_p.update_frame()
+
+        self.fine_dialog.center = SkyCoord(self.ra_input.getAngle(),
+                                           self.dec_input.getAngle(),
+                                           frame='icrs')
+        self.fine_dialog.pa = self.PA_input.value()
 
 
 if __name__ == "__main__":

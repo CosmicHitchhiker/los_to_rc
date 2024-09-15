@@ -53,6 +53,13 @@ class radecSpinBox(QAbstractSpinBox):
         self.line.setText(self.textFromValue(self.angle.value))
         self.valueChanged.emit(self.angle)
 
+    @Slot()
+    def stepByAngle(self, step):
+        self.angle += step * u.arcsec
+        self.line.setText(self.textFromValue(self.angle.value))
+        self.valueChanged.emit(self.angle)
+
+
     def getAngle(self):
         return self.angle
 
