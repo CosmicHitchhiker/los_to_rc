@@ -323,6 +323,7 @@ class PlotWidget(QWidget):
             # self.csv_field.fill_string(csv)
 
         self.i_input.setKeyboardTracking(False)
+        self.i_input.setMinimum(1)
         self.i_input.setValue(inclination)
 
         self.PA_input.setKeyboardTracking(False)
@@ -342,6 +343,7 @@ class PlotWidget(QWidget):
 
         self.dist_input.setKeyboardTracking(False)
         self.dist_input.setSuffix('Mpc')
+        self.dist_input.setMinimum(0.01)
         self.dist_input.setValue(velocity / 70)
         self.dist_input.setSingleStep(0.1)
         self.dist_input.setDisabled(False)
