@@ -229,7 +229,7 @@ class csvPlot(QWidget):
                     dat['R_pc'][mask1],
                     dat['Circular_v'][mask1],
                     yerr=verr[mask1],
-                    linestyle='',
+                    linestyle='-',
                     marker='.',
                     color=dat_sp.colors[0])
             if len(mask2[mask2]) > 0:
@@ -237,7 +237,7 @@ class csvPlot(QWidget):
                     dat['R_pc'][mask2],
                     dat['Circular_v'][mask2],
                     yerr=verr[mask2],
-                    linestyle='',
+                    linestyle='-',
                     marker='.',
                     color=dat_sp.colors[1])
         self.axes_plot.axhline(y=0, color='black', linestyle='--', lw=0.5)
