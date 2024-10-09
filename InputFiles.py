@@ -46,11 +46,12 @@ class InputDialog(QDialog):
         self.add_button.clicked.connect(lambda: self.add_file(file_path=None))
         self.delete_button.clicked.connect(self.delete_row)
         self.ok_button.clicked.connect(self.accept)
+        self.table.itemChanged.connect(self.change_info)
 
     def __configure_widgets(self):
         self.table.setRowCount(0)
         self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["Path", "Color 1", "Color 2", "Name"])
+        self.table.setHorizontalHeaderLabels(["Path", "Color 1", "Color 2", "Label"])
 
     def __setLayout(self):
         self.vlayout = QVBoxLayout()
@@ -101,6 +102,11 @@ class InputDialog(QDialog):
     @Slot()
     def apply_files(self):
         super().accept()
+
+    @Slot()
+    def change_info(self, item):
+        if item.column() == 3:
+            self.data[item.row()].label = item.text()
 
     @staticmethod
     def rgb_from_color(color):

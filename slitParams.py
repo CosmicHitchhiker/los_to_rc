@@ -15,6 +15,7 @@ class slitParams:
         self.colors = self.palette[[2 * m, 2 * m + 1]]
         self.csv_path = csv_path
         self.is_used = is_used
+        self.label = ''
         try:
             self.dataFrame = pd.read_csv(self.csv_path)
             self.dataFrame.dropna(subset=['velocity', 'velocity_err'],

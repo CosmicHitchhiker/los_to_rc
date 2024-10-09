@@ -14,6 +14,7 @@ from astropy.wcs import WCS
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from matplotlib.backend_bases import MouseButton
+from matplotlib.legend_handler import HandlerTuple
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qtagg import FigureCanvas
@@ -220,26 +221,35 @@ class csvPlot(QWidget):
     def plot_rc(self):
         self.axes_plot.set_ylabel('Circular Velocity, km/s')
         self.axes_plot.set_xlabel('R, parsec')
+        lines = []
+        labels = []
         for dat_sp in self.data:
+            line = []
             dat = dat_sp.dataFrame
             verr = dat['Circular_v_err'].to_numpy()
             mask1, mask2 = dat['mask1'], dat['mask2']
             if len(mask1[mask1]) > 0:
-                self.axes_plot.errorbar(
+                line.append(self.axes_plot.errorbar(
                     dat['R_pc'][mask1],
                     dat['Circular_v'][mask1],
                     yerr=verr[mask1],
                     linestyle='-',
                     marker='.',
-                    color=dat_sp.colors[0])
+                    color=dat_sp.colors[0])[0])
             if len(mask2[mask2]) > 0:
-                self.axes_plot.errorbar(
+                line.append(self.axes_plot.errorbar(
                     dat['R_pc'][mask2],
                     dat['Circular_v'][mask2],
                     yerr=verr[mask2],
                     linestyle='-',
                     marker='.',
-                    color=dat_sp.colors[1])
+                    color=dat_sp.colors[1])[0])
+            if line and dat_sp.label:
+                lines.append(tuple(line))
+                labels.append(dat_sp.label)
+
+        self.axes_plot.legend(lines, labels,
+                       handler_map={tuple: HandlerTuple(ndivide=None)})
         self.axes_plot.axhline(y=0, color='black', linestyle='--', lw=0.5)
         self.axes_plot.axvline(x=0, color='black', linestyle='--', lw=0.5)
         self.figure.canvas.draw()
