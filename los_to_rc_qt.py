@@ -345,9 +345,10 @@ class PlotWidget(QWidget):
         self.dist_input.setMinimum(0.01)
         self.dist_input.setValue(velocity / 70)
         self.dist_input.setSingleStep(0.1)
-        self.dist_input.setDisabled(False)
+        self.dist_input.setDisabled(True)
 
         self.dist_checkbox.setToolTip('Assuming H0=70km/s/Mpc')
+        self.dist_checkbox.setChecked(True)
 
     def configureLayout(self):
         # Layout

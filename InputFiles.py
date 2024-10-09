@@ -50,7 +50,7 @@ class InputDialog(QDialog):
     def __configure_widgets(self):
         self.table.setRowCount(0)
         self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["Path", "Color 1", "Color 2", "Use"])
+        self.table.setHorizontalHeaderLabels(["Path", "Color 1", "Color 2", "Name"])
 
     def __setLayout(self):
         self.vlayout = QVBoxLayout()
@@ -74,7 +74,7 @@ class InputDialog(QDialog):
         if check_valid_path(file_path):
             self.dir = "/".join(file_path.split('/')[:-1])
             n = len(self.data)
-            self.data.append(slitParams(n, csv_path=file_path))
+            self.data.append(slitParams(csv_path=file_path))
             self.table.insertRow(n)
             self.row_from_slitP(n, self.data[n])
 
@@ -82,9 +82,10 @@ class InputDialog(QDialog):
         n = self.table.currentRow()
         self.table.removeRow(n)
         self.data.pop(n)
-        for num, dat in enumerate(self.data):
-            dat.set_n(num)
-            self.row_from_slitP(num, dat)
+        slitParams.avaliable_n.insert(0, n)
+        # for num, dat in enumerate(self.data):
+        #     dat.set_n(num)
+        #     self.row_from_slitP(num, dat)
 
     def row_from_slitP(self, n: int, params: slitParams):
         path = QTableWidgetItem(params.csv_path)

@@ -6,10 +6,13 @@ from matplotlib import colormaps
 
 
 class slitParams:
-    def __init__(self, n=0, csv_path=None, is_used=True):
-        colors = colormaps['tab20'](np.linspace(0, 1, 20))
-        self.n = n
-        self.colors = colors[[2 * n, 2 * n + 1]]
+    palette = colormaps['tab20'](np.linspace(0, 1, 20))
+    avaliable_n = np.arange(20).tolist()
+
+    def __init__(self, csv_path=None, is_used=True):
+        m = slitParams.avaliable_n[0]
+        slitParams.avaliable_n.pop(0)
+        self.colors = self.palette[[2 * m, 2 * m + 1]]
         self.csv_path = csv_path
         self.is_used = is_used
         try:
@@ -22,11 +25,6 @@ class slitParams:
                                     unit=(u.hourangle, u.deg))
         except (UnicodeDecodeError, FileNotFoundError, KeyError):
             print('INVALID CSV FILE OR PATH')
-
-    def set_n(self, new_n):
-        self.n = new_n
-        colors = colormaps['tab20'](np.linspace(0, 1, 20))
-        self.colors = colors[[2 * self.n, 2 * self.n + 1]]
 
     def set_csv_path(self, new_path):
         self.csv_path = new_path
