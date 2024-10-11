@@ -36,7 +36,7 @@ chmod a+x los_to_rc.py
 ## Usage
 
  <p align="center">
-  <img src="images/Example.png" width="100%" alt="Example">
+  <img src="images/Example.gif" width="100%" alt="Example">
 </p>
 
 ### Preparation
