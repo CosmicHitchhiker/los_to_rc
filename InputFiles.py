@@ -81,9 +81,11 @@ class InputDialog(QDialog):
 
     def delete_row(self):
         n = self.table.currentRow()
+        m = self.data[n].m
         self.table.removeRow(n)
         self.data.pop(n)
-        slitParams.avaliable_n.insert(0, n)
+        slitParams.avaliable_n.insert(0, m)
+        slitParams.avaliable_n.sort()
         # for num, dat in enumerate(self.data):
         #     dat.set_n(num)
         #     self.row_from_slitP(num, dat)

@@ -10,9 +10,9 @@ class slitParams:
     avaliable_n = np.arange(20).tolist()
 
     def __init__(self, csv_path=None, is_used=True):
-        m = slitParams.avaliable_n[0]
+        self.m = slitParams.avaliable_n[0]
         slitParams.avaliable_n.pop(0)
-        self.colors = self.palette[[2 * m, 2 * m + 1]]
+        self.colors = self.palette[[2 * self.m, 2 * self.m + 1]]
         self.csv_path = csv_path
         self.is_used = is_used
         self.label = ''

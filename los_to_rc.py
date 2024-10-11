@@ -15,6 +15,7 @@ import astropy.units as u
 from astropy.coordinates import SkyCoord
 from matplotlib.backend_bases import MouseButton
 from matplotlib.legend_handler import HandlerTuple
+import pandas as pd
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qtagg import FigureCanvas
@@ -255,7 +256,14 @@ class csvPlot(QWidget):
         self.figure.canvas.draw()
 
     def return_rc(self):
-        return self.data
+        res = []
+        for n, dat in enumerate(self.data):
+            preresult = dat.dataFrame[['RA', 'DEC', 'Circular_v', 'Circular_v_err',
+                                       'R_pc', 'R_arcsec', 'mask1', 'mask2']]
+            preresult['source_index'] = n
+            res.append(preresult)
+        res = pd.concat(res, ignore_index=True)
+        return res
 
 
 class PlotWidget(QWidget):
@@ -431,18 +439,16 @@ class PlotWidget(QWidget):
     @Slot()
     def save_rc(self):
         # filenames = self.csv_field.return_filenames()
-        filenames = [x.csv_path for x in self.manage_csv.data]
-        dataframes = self.csvGraph.return_rc()
+        fname = self.manage_csv.data[0].csv_path
+        result = self.csvGraph.return_rc()
         regexps = "CSV (*.csv)"
-        for fname, dat in zip(filenames, dataframes):
-            fname_temp = '.'.join(fname.split('.')[:-1]) + '_rc.csv'
-            file_path = QFileDialog.getSaveFileName(self,
-                                                    "Save rotation curve",
-                                                    fname_temp,
-                                                    regexps)[0]
-            print('Saving ', file_path)
-            dat[['RA', 'DEC', 'Circular_v', 'Circular_v_err',
-                 'R_pc', 'R_arcsec', 'mask1', 'mask2']].to_csv(file_path)
+        fname_temp = '/'.join(fname.split('/')[:-1]) + '/rot_curve.csv'
+        file_path = QFileDialog.getSaveFileName(self,
+                                                "Save rotation curve",
+                                                fname_temp,
+                                                regexps)[0]
+        result.to_csv(file_path)
+        print('Saving ', file_path)
 
     def updateValues(self):
         self.gal_p.i = self.i_input.value() * u.deg
