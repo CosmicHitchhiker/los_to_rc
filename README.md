@@ -207,4 +207,6 @@ $v = v_y/\cos{\alpha} = v'_z/(\sin{i} \cdot \cos{\alpha})$
 
 $R = \sqrt{x^2 + y^2} = \sqrt{x'^2 + y'^2/\cos^2 i}$
 
+## Contact information and bug reports
+If you want to discuss this software, you can contact me directly on GitHub or email to landervyu(at)gmail.com
 
