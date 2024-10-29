@@ -39,6 +39,7 @@ from astroPatches import rotatedEllipse
 from InputFiles import InputDialog
 from FineMovements import FineMovementsDialog
 from slitParams import slitParams
+from HyperledaDialog import HyperledaDialog
 matplotlib.use('QtAgg')
 
 
@@ -299,11 +300,13 @@ class PlotWidget(QWidget):
         # Buttons
         self.redraw_button = QPushButton(text='Redraw')
         self.saveres_button = QPushButton(text='Save Results')
+        self.hyperleda_button = QPushButton(text='HYPERLEDA')
         self.fine_button = QPushButton(text='Fine movements')
         self.manage_csv_button = QPushButton(text='Manage CSV files')
         # Dialogs
         self.manage_csv = InputDialog(self)
         self.fine_dialog = FineMovementsDialog(self)
+        self.hyperleda_dialog = HyperledaDialog(self)
 
         # Configure all widgets
         self.configureElements(frame, csv, inclination, pa, refcenter, velocity)
@@ -327,6 +330,7 @@ class PlotWidget(QWidget):
         self.fine_dialog.move_ra.connect(self.ra_input.stepByAngle)
         self.fine_dialog.move_dec.connect(self.dec_input.stepByAngle)
         self.csvGraph.del_point.connect(self.galIm.plot_slit)
+        self.hyperleda_button.clicked.connect(lambda: self.hyperleda_dialog.show())
 
     def configureElements(self, frame, csv, inclination, pa, refcenter,
                           velocity):
@@ -375,7 +379,7 @@ class PlotWidget(QWidget):
         r_button_layout.addWidget(self.saveres_button)
 
         l_button_layout = QHBoxLayout()
-        # l_button_layout.addWidget(self.manage_csv_button)
+        l_button_layout.addWidget(self.hyperleda_button)
         l_button_layout.addWidget(self.fine_button)
 
         left_layout = QFormLayout()
