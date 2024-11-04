@@ -68,7 +68,7 @@ class galaxyImage:
         self.axes_gal: matplotlib.axes.Axes | None = None
         self.norm_im: matplotlib.colors.Normalize | None = None
         self.ellipses = []
-        # just default value, replaced with the real galaxy coordinate frame later
+        # just a default value, replaced with the real galaxy coordinate frame later
         self.gal_frame = SkyCoord(0, 0, unit=(u.deg, u.deg),
                                   frame='icrs').skyoffset_frame()
 
@@ -117,9 +117,18 @@ class galaxyImage:
         self.figure.canvas.draw()
 
     def get_image_center(self):
+        if self.image is None or self.wcs is None:
+            return None
         center = np.array(np.shape(self.image)) * 0.5
         cent_coord = self.wcs.pixel_to_world(*center)
         return cent_coord
+
+    def get_ra_dec_limits(self):
+        if self.wcs is None:
+            return None, None
+        min_corner = self.wcs.pixel_to_world(0, 0)
+        max_corner = self.wcs.pixel_to_world(*np.shape(self.image))
+        return min_corner, max_corner
 
     def plot_ellipses(self, d, i):
         r = np.array([5, 10, 15, 20]) * 1e-3
@@ -330,7 +339,8 @@ class PlotWidget(QWidget):
         self.fine_dialog.move_ra.connect(self.ra_input.stepByAngle)
         self.fine_dialog.move_dec.connect(self.dec_input.stepByAngle)
         self.csvGraph.del_point.connect(self.galIm.plot_slit)
-        self.hyperleda_button.clicked.connect(lambda: self.hyperleda_dialog.show())
+        self.hyperleda_button.clicked.connect(self.show_hyperleda_dialog)
+        self.hyperleda_dialog.params_set.connect(self.update_fields_hyperleda)
 
     def configureElements(self, frame, csv, inclination, pa, refcenter,
                           velocity):
@@ -364,7 +374,7 @@ class PlotWidget(QWidget):
 
         self.dist_input.setKeyboardTracking(False)
         self.dist_input.setSuffix('Mpc')
-        self.dist_input.setMinimum(0.01)
+        self.dist_input.setMinimum(0.05)
         self.dist_input.setValue(velocity / 70)
         self.dist_input.setSingleStep(0.1)
         self.dist_input.setDisabled(True)
@@ -439,6 +449,49 @@ class PlotWidget(QWidget):
         self.csvGraph.add_data(self.manage_csv.data)
         self.csvGraph.calc_rc(self.gal_p)
         self.galIm.plot_slit(self.csvGraph.data)
+
+    @Slot()
+    def show_hyperleda_dialog(self):
+        cone = 1 * u.arcmin
+        pos = [self.ra_input.getAngle(),
+               self.dec_input.getAngle()]
+        min_c, max_c = self.galIm.get_ra_dec_limits()
+        if min_c is not None and max_c is not None:
+            min_ra, max_ra = min(min_c.ra, max_c.ra), max(min_c.ra, max_c.ra)
+            min_dec, max_dec = min(min_c.dec, max_c.dec), max(min_c.dec, max_c.dec)
+        else:
+            min_ra, max_ra = pos[0] - cone, pos[0] + cone
+            min_dec, max_dec = pos[1] - cone, pos[1] + cone
+
+        min_ra, max_ra = min(min_ra, pos[0] - cone), max(max_ra, pos[0] + cone)
+        min_dec, max_dec = min(min_dec, pos[1] - cone), max(max_dec, pos[1] + cone)
+
+        new_lims = [[min_ra.to(u.hourangle).value, max_ra.to(u.hourangle).value],
+                    [min_dec.to(u.deg).value, max_dec.to(u.deg).value]]
+        self.hyperleda_dialog.update_lims(new_lims)
+        self.hyperleda_dialog.update_slit(self.gal_p.center)
+        self.hyperleda_dialog.show()
+
+    @Slot()
+    def update_fields_hyperleda(self):
+        hyp_data = self.hyperleda_dialog.get_selected_data()
+        if hyp_data is None:
+            print('no data to fill')
+            return
+
+        if pd.notna(hyp_data['incl']):
+            self.i_input.setValue(hyp_data['incl'])
+        if pd.notna(hyp_data['pa']):
+            self.PA_input.setValue(hyp_data['pa'])
+        if pd.notna(hyp_data['RA']):
+            self.ra_input.setValue(hyp_data['RA'])
+        if pd.notna(hyp_data['DEC']):
+            self.dec_input.setValue(hyp_data['DEC'])
+        if pd.notna(hyp_data['v']):
+            self.vel_input.setValue(hyp_data['v'])
+
+        self.updateValues()
+        
 
     @Slot()
     def save_rc(self):
